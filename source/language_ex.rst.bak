@@ -1,0 +1,111 @@
+﻿hlist 水平列表example
+=================
+
+.. hlist::
+   :columns: 3
+
+   * A list of
+   * short items
+   * that should be
+   * displayed
+   * horizontally
+..
+
+productionlist 样例
+===================
+   
+.. productionlist::
+   try_stmt: try1_stmt | try2_stmt
+   try1_stmt: "try" ":" `suite`
+            : ("except" [`expression` ["," `target`]] ":" `suite`)+
+            : ["else" ":" `suite`]
+            : ["finally" ":" `suite`]
+   try2_stmt: "try" ":" `suite`
+            : "finally" ":" `suite`
+
+
+C/C++ Code
+===========
+.. sidebar:: sidebar Example
+
+   ``toctree`` is a reStructuredText :dfn:`directive`, a very versatile piece of
+   markup.  Directives can have arguments, options and content.
+
+   *Arguments* are given directly after the double colon following the
+   directive's name.  Each directive decides whether it can have arguments, and
+   how many.
+
+
+.. highlight:: c++
+
+.. code-block:: c++
+   	:linenos:	
+
+	#include <iostream>
+	class Object 
+	{
+	  public:
+
+	  Object() {this->doSomething()};
+	  void doSomething() {};
+	};
+
+	int main()
+	{
+	  Object *obj = new Object();
+	  return 0;
+	}
+
+Its a c++ class.
+
+Python Code
+============
+
+JSON (JavaScript Object Notation) <http://json.org> is a subset of JavaScript
+syntax (ECMA-262 3rd edition) used as a lightweight data interchange format.
+
+:mod:`simplejson` exposes an API familiar to users of the standard library
+:mod:`marshal` and :mod:`pickle` modules. It is the externally maintained
+version of the :mod:`json` library contained in Python 2.6, but maintains
+compatibility with Python 2.4 and Python 2.5 and (currently) has
+significant performance advantages, even without using the optional C
+extension for speedups.
+
+.. highlight:: python
+
+Encoding basic Python object hierarchies::
+
+    >>> import simplejson as json
+    >>> json.dumps(['foo', {'bar': ('baz', None, 1.0, 2)}])
+    '["foo", {"bar": ["baz", null, 1.0, 2]}]'
+    >>> print json.dumps("\"foo\bar")
+    "\"foo\bar"
+    >>> print json.dumps(u'\u1234')
+    "\u1234"
+    >>> print json.dumps('\\')
+    "\\"
+    >>> print json.dumps({"c": 0, "b": 0, "a": 0}, sort_keys=True)
+    {"a": 0, "b": 0, "c": 0}
+    >>> from StringIO import StringIO
+    >>> io = StringIO()
+    >>> json.dump(['streaming API'], io)
+    >>> io.getvalue()
+    '["streaming API"]'
+
+Compact encoding::
+
+    >>> import simplejson as json
+    >>> json.dumps([1,2,3,{'4': 5, '6': 7}], separators=(',',':'))
+    '[1,2,3,{"4":5,"6":7}]'
+
+Pretty printing::
+
+    >>> import simplejson as json
+    >>> s = json.dumps({'4': 5, '6': 7}, sort_keys=True, indent=4)
+    >>> print '\n'.join([l.rstrip() for l in  s.splitlines()])
+    {
+        "4": 5,
+        "6": 7
+    }
+
+Decoding JSON
