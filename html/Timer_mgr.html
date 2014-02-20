@@ -1,0 +1,930 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>5. 定时器管理 &mdash; sphinx_example 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="sphinx_example 0.1 documentation" href="index.html" />
+    <link rel="next" title="6. 信号量的管理" href="Signal_mgr.html" />
+    <link rel="prev" title="4. Notification 通知时间派发处理" href="Notification_mgr.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>sphinx_example 0.1 documentation</span></a></h1>
+        <h2 class="heading"><span>5. 定时器管理</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="Notification_mgr.html">4. Notification 通知时间派发处理</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="Signal_mgr.html">6. 信号量的管理</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="contents topic" id="id1">
+<p class="topic-title first">本章目录</p>
+<ul class="simple">
+<li><a class="reference internal" href="#id2" id="id12">定时器管理</a><ul>
+<li><a class="reference internal" href="#id3" id="id13">定时器类继承图</a></li>
+<li><a class="reference internal" href="#id4" id="id14">类协作图</a></li>
+<li><a class="reference internal" href="#id5" id="id15">定时器的数据结构</a><ul>
+<li><a class="reference internal" href="#heap-timer" id="id16">Heap Timer基础知识</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-reactor" id="id17">定时器与Select_Reactor的分发集成</a><ul>
+<li><a class="reference internal" href="#expire" id="id18">定时器队列的 expire 函数</a></li>
+<li><a class="reference internal" href="#dispatch-info-i" id="id19">定时器队列的 dispatch_info_i 函数</a></li>
+<li><a class="reference internal" href="#upcall" id="id20">定时器队列的 upcall 函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id6" id="id21">定时器注册</a><ul>
+<li><a class="reference internal" href="#schedule" id="id22">schedule 函数</a></li>
+<li><a class="reference internal" href="#schedule-i" id="id23">schedule_i 函数</a></li>
+<li><a class="reference internal" href="#insert" id="id24">insert 函数</a></li>
+<li><a class="reference internal" href="#reheap-up" id="id25">reheap_up 函数</a></li>
+<li><a class="reference internal" href="#upcall-functor-registration" id="id26">upcall_functor registration函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id7" id="id27">定时器取消</a></li>
+<li><a class="reference internal" href="#id8" id="id28">定时器队列注意事项</a><ul>
+<li><a class="reference internal" href="#ace" id="id29">ACE时间源</a></li>
+<li><a class="reference internal" href="#id9" id="id30">实时线程定时器</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id10" id="id31">各种定时器队列对比</a><ul>
+<li><a class="reference internal" href="#timer-wheel" id="id32">Timer Wheel 简单介绍</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="id2">
+<h1><a class="toc-backref" href="#id12">5. 定时器管理</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id3">
+<h2><a class="toc-backref" href="#id13">5.1. 定时器类继承图</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<img alt="_images/a03884.png" class="align-center" src="_images/a03884.png" />
+<p>其中 <tt class="docutils literal"><span class="pre">ACE_Abstract_Timer_Queue</span></tt> 类为所有定时器队列的基类，提供一个统一的接口，而不管加锁策略、回调机制、内部实现。该类的主要目的是为Reactor实现了一个统一的接口类，从而是Reactor无须了解定时器队列的内部实现机制。 <tt class="docutils literal"><span class="pre">ACE_Timer_Queue_T&lt;TYPE,</span> <span class="pre">FUNCTOR,</span> <span class="pre">ACE_LOCK,</span> <span class="pre">TIME_POLICY&gt;</span></tt> 为定时器队列提供了公共的接口，从该类派生的类包括 <tt class="docutils literal"><span class="pre">ACE_Timer_Hash_T</span></tt>, <tt class="docutils literal"><span class="pre">ACE_Timer_Heap_T</span></tt> , <tt class="docutils literal"><span class="pre">ACE_Timer_List_T</span></tt>, <tt class="docutils literal"><span class="pre">ACE_Timer_Wheel_T</span></tt> 4中类型的时间队列的实现。本例中主要分析 <tt class="docutils literal"><span class="pre">ACE_Timer_Heap_T</span></tt> 类的主要数据结构和实现机制。</p>
+<p class="rubric">ACE_Timer_Queue_T 类定义原型</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span><span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span><span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">=</span><span class="n">ACE_Default_Time_Policy</span><span class="o">&gt;</span>
+        <span class="k">class</span> <span class="nc">ACE_Timer_Queue_T</span> <span class="o">:</span> <span class="k">public</span> <span class="n">ACE_Timer_Queue_Upcall_Base</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span><span class="n">FUNCTOR</span><span class="o">&gt;</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="id4">
+<h2><a class="toc-backref" href="#id14">5.2. 类协作图</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<a class="reference internal image-reference" href="_images/a03871.png"><img alt="_images/a03871.png" class="align-center" src="_images/a03871.png" /></a>
+</div>
+<div class="section" id="id5">
+<h2><a class="toc-backref" href="#id15">5.3. 定时器的数据结构</a><a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
+<p class="rubric">ACE_Timer_Queue_T 类成员变量</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</pre></div></td><td class="code"><div class="highlight"><pre>  <span class="c1">/// Synchronization variable for ACE_Timer_Queue.</span>
+  <span class="c1">/// @note The right name would be lock_, but HP/C++ will choke on that!</span>
+  <span class="n">ACE_LOCK</span> <span class="n">mutex_</span><span class="p">;</span>
+
+  <span class="c1">/// Class that implements a free list</span>
+<span class="hll">  <span class="n">ACE_Free_List</span><span class="o">&lt;</span><span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">&gt;</span> <span class="o">*</span><span class="n">free_list_</span><span class="p">;</span>
+</span>
+  <span class="c1">/// The policy to return the current time of day</span>
+<span class="hll">  <span class="n">TIME_POLICY</span> <span class="n">time_policy_</span><span class="p">;</span>
+</span>
+  <span class="c1">/// Flag to delete only if the class created the &lt;free_list_&gt;</span>
+  <span class="kt">bool</span> <span class="k">const</span> <span class="n">delete_free_list_</span><span class="p">;</span>
+
+<span class="nl">private:</span>
+
+  <span class="c1">/// Returned by &lt;calculate_timeout&gt;.</span>
+  <span class="n">ACE_Time_Value</span> <span class="n">timeout_</span><span class="p">;</span>
+
+  <span class="c1">/// Adjusts for timer skew in various clocks.</span>
+  <span class="n">ACE_Time_Value</span> <span class="n">timer_skew_</span><span class="p">;</span>
+</pre></div>
+</td></tr></table></div>
+<div class="section" id="heap-timer">
+<h3><a class="toc-backref" href="#id16">5.3.1. Heap Timer基础知识</a><a class="headerlink" href="#heap-timer" title="Permalink to this headline">¶</a></h3>
+<p>min-heap，就是 child node value 一定小于 parent node value 的 binary-tree。因此，获取 min value，只需要 pop root node 即可。</p>
+<img alt="_images/heap_timer.jpg" class="align-center" src="_images/heap_timer.jpg" />
+<p>在ACE_Time_Heap类中，每个节点结构如下：</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">ACE_Event_Handler</span> <span class="o">*</span> <span class="n">type_</span><span class="p">;</span>            <span class="c1">// 时间处理的回调类</span>
+<span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">act_</span><span class="p">;</span>                     <span class="c1">// 异步完成的token</span>
+<span class="hll"><span class="n">ACE_Time_Value</span> <span class="n">timer_value_</span><span class="p">;</span>          <span class="c1">// 要超时的时间值</span>
+</span><span class="hll"><span class="n">ACE_Time_Value</span> <span class="n">interval_</span><span class="p">;</span>             <span class="c1">// 周期定时器的周期值</span>
+</span><span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">prev_</span><span class="p">;</span>        <span class="c1">// 前一个节点</span>
+<span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">next_</span><span class="p">;</span>        <span class="c1">// 后一个节点</span>
+<span class="hll"><span class="kt">long</span> <span class="n">timer_id_</span><span class="p">;</span>                       <span class="c1">// 定时器的id，主要用于取消</span>
+</span></pre></div>
+</td></tr></table></div>
+</div>
+</div>
+<div class="section" id="select-reactor">
+<span id="timer-reactor"></span><h2><a class="toc-backref" href="#id17">5.4. 定时器与Select_Reactor的分发集成</a><a class="headerlink" href="#select-reactor" title="Permalink to this headline">¶</a></h2>
+<p><tt class="docutils literal"><span class="pre">ace/Select_Reactor_T.cpp</span></tt> <tt class="docutils literal"><span class="pre">dispatch</span></tt> 函数中调用 <tt class="docutils literal"><span class="pre">dispatch_timer_handlers</span></tt> 函数处理定时器队列。</p>
+<p class="rubric">Select_Reactor_T.cpp  <tt class="docutils literal"><span class="pre">dispatch_timer_handlers</span></tt> 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">dispatch_timer_handlers</span>
+  <span class="p">(</span><span class="kt">int</span> <span class="o">&amp;</span><span class="n">number_of_handlers_dispatched</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">number_of_handlers_dispatched</span> <span class="o">+=</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">timer_queue_</span><span class="o">-&gt;</span><span class="n">expire</span> <span class="p">();</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<div class="section" id="expire">
+<h3><a class="toc-backref" href="#id18">5.4.1. 定时器队列的 expire 函数</a><a class="headerlink" href="#expire" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">Timer_Queue_T.inl  <tt class="docutils literal"><span class="pre">expire</span></tt> 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span> <span class="n">ACE_INLINE</span> <span class="kt">int</span>
+<span class="n">ACE_Timer_Queue_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">expire</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">is_empty</span> <span class="p">())</span>
+    <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">expire</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">gettimeofday_static</span> <span class="p">()</span> <span class="o">+</span> <span class="n">timer_skew_</span><span class="p">);</span>
+  <span class="k">else</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p class="rubric">Timer_Queue_T.cpp  <tt class="docutils literal"><span class="pre">expire</span></tt> 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39</pre></div></td><td class="code"><div class="highlight"><pre><span class="c1">// Run the &lt;handle_timeout&gt; method for all Timers whose values are &lt;=</span>
+<span class="c1">// &lt;cur_time&gt;.</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Timer_Queue_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">expire</span> <span class="p">(</span><span class="k">const</span> <span class="n">ACE_Time_Value</span> <span class="o">&amp;</span><span class="n">cur_time</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Timer_Queue_T::expire&quot;</span><span class="p">);</span>
+  <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">ace_mon</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+
+  <span class="c1">// Keep looping while there are timers remaining and the earliest</span>
+  <span class="c1">// timer is &lt;= the &lt;cur_time&gt; passed in to the method.</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">is_empty</span> <span class="p">())</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="kt">int</span> <span class="n">number_of_timers_expired</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">result</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="n">ACE_Timer_Node_Dispatch_Info_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="n">info</span><span class="p">;</span>
+
+<span class="hll">  <span class="k">while</span> <span class="p">((</span><span class="n">result</span> <span class="o">=</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">dispatch_info_i</span> <span class="p">(</span><span class="n">cur_time</span><span class="p">,</span> <span class="n">info</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span>    <span class="p">{</span>
+      <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_Reverse_Lock</span><span class="o">&lt;</span><span class="n">ACE_LOCK</span><span class="o">&gt;</span> <span class="n">rev_lk</span><span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">));</span>
+      <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_Reverse_Lock</span><span class="o">&lt;</span><span class="n">ACE_LOCK</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">rmon</span><span class="p">,</span> <span class="n">rev_lk</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+
+      <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">upcall_act</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">preinvoke</span> <span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">cur_time</span><span class="p">,</span> <span class="n">upcall_act</span><span class="p">);</span>
+
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">upcall</span> <span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">cur_time</span><span class="p">);</span>
+</span>
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">postinvoke</span> <span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">cur_time</span><span class="p">,</span> <span class="n">upcall_act</span><span class="p">);</span>
+
+      <span class="o">++</span><span class="n">number_of_timers_expired</span><span class="p">;</span>
+
+    <span class="p">}</span>
+
+  <span class="n">ACE_UNUSED_ARG</span> <span class="p">(</span><span class="n">result</span><span class="p">);</span>
+  <span class="k">return</span> <span class="n">number_of_timers_expired</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p>其中 29行 为调用该超时节点的 <tt class="docutils literal"><span class="pre">handle_timeout</span></tt> 函数的包装。</p>
+</div>
+<div class="section" id="dispatch-info-i">
+<h3><a class="toc-backref" href="#id19">5.4.2. 定时器队列的 dispatch_info_i 函数</a><a class="headerlink" href="#dispatch-info-i" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">Timer_Queue_T.cpp  <tt class="docutils literal"><span class="pre">dispatch_info_i</span></tt> 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Timer_Queue_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">dispatch_info_i</span> <span class="p">(</span><span class="k">const</span> <span class="n">ACE_Time_Value</span> <span class="o">&amp;</span><span class="n">cur_time</span><span class="p">,</span>
+                                                             <span class="n">ACE_Timer_Node_Dispatch_Info_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">info</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Timer_Queue_T::dispatch_info_i&quot;</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">is_empty</span> <span class="p">())</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">expired</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">earliest_time</span> <span class="p">()</span> <span class="o">&lt;=</span> <span class="n">cur_time</span><span class="p">)</span>
+    <span class="p">{</span>
+<span class="hll">      <span class="n">expired</span> <span class="o">=</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">remove_first</span> <span class="p">();</span>
+</span>
+      <span class="c1">// Get the dispatch info</span>
+<span class="hll">      <span class="n">expired</span><span class="o">-&gt;</span><span class="n">get_dispatch_info</span> <span class="p">(</span><span class="n">info</span><span class="p">);</span>
+</span>
+      <span class="c1">// Check if this is an interval timer.</span>
+<span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="n">expired</span><span class="o">-&gt;</span><span class="n">get_interval</span> <span class="p">()</span> <span class="o">&gt;</span> <span class="n">ACE_Time_Value</span><span class="o">::</span><span class="n">zero</span><span class="p">)</span>
+</span><span class="hll">        <span class="p">{</span>
+</span><span class="hll">          <span class="c1">// Make sure that we skip past values that have already</span>
+</span><span class="hll">          <span class="c1">// &quot;expired&quot;.</span>
+</span><span class="hll">          <span class="k">this</span><span class="o">-&gt;</span><span class="n">recompute_next_abs_interval_time</span> <span class="p">(</span><span class="n">expired</span><span class="p">,</span> <span class="n">cur_time</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">          <span class="c1">// Since this is an interval timer, we need to reschedule</span>
+</span><span class="hll">          <span class="c1">// it.</span>
+</span><span class="hll">          <span class="k">this</span><span class="o">-&gt;</span><span class="n">reschedule</span> <span class="p">(</span><span class="n">expired</span><span class="p">);</span>
+</span>        <span class="p">}</span>
+      <span class="k">else</span>
+        <span class="p">{</span>
+          <span class="c1">// Call the factory method to free up the node.</span>
+          <span class="k">this</span><span class="o">-&gt;</span><span class="n">free_node</span> <span class="p">(</span><span class="n">expired</span><span class="p">);</span>
+        <span class="p">}</span>
+
+      <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="upcall">
+<h3><a class="toc-backref" href="#id20">5.4.3. 定时器队列的 upcall 函数</a><a class="headerlink" href="#upcall" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">Timer_Queue_T.inl  <tt class="docutils literal"><span class="pre">upcall</span></tt> 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span> <span class="n">ACE_INLINE</span> <span class="kt">void</span>
+<span class="n">ACE_Timer_Queue_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">upcall</span> <span class="p">(</span><span class="n">ACE_Timer_Node_Dispatch_Info_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">info</span><span class="p">,</span>
+                                                    <span class="k">const</span> <span class="n">ACE_Time_Value</span> <span class="o">&amp;</span><span class="n">cur_time</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">this</span><span class="o">-&gt;</span><span class="n">upcall_functor</span> <span class="p">().</span><span class="n">timeout</span> <span class="p">(</span><span class="o">*</span><span class="k">this</span><span class="p">,</span>
+                                   <span class="n">info</span><span class="p">.</span><span class="n">type_</span><span class="p">,</span>
+                                   <span class="n">info</span><span class="p">.</span><span class="n">act_</span><span class="p">,</span>
+                                   <span class="n">info</span><span class="p">.</span><span class="n">recurring_timer_</span><span class="p">,</span>
+                                   <span class="n">cur_time</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p>其中 14行获取最小超时时间节点，行17获取超时节点的相关信息，20-28 行为处理周期定时器。</p>
+</div>
+</div>
+<div class="section" id="id6">
+<h2><a class="toc-backref" href="#id21">5.5. 定时器注册</a><a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="schedule">
+<h3><a class="toc-backref" href="#id22">5.5.1. schedule 函数</a><a class="headerlink" href="#schedule" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ACE_Timer_Queue_T schedule 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span> <span class="kt">long</span>
+<span class="n">ACE_Timer_Queue_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">schedule</span> <span class="p">(</span><span class="k">const</span> <span class="n">TYPE</span> <span class="o">&amp;</span><span class="n">type</span><span class="p">,</span>
+                                                      <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">act</span><span class="p">,</span>
+                                                      <span class="k">const</span> <span class="n">ACE_Time_Value</span> <span class="o">&amp;</span><span class="n">future_time</span><span class="p">,</span>
+                                                      <span class="k">const</span> <span class="n">ACE_Time_Value</span> <span class="o">&amp;</span><span class="n">interval</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">ace_mon</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+
+  <span class="c1">// Schedule the timer.</span>
+  <span class="kt">long</span> <span class="k">const</span> <span class="n">result</span> <span class="o">=</span>
+<span class="hll">    <span class="k">this</span><span class="o">-&gt;</span><span class="n">schedule_i</span> <span class="p">(</span><span class="n">type</span><span class="p">,</span>
+</span><span class="hll">                      <span class="n">act</span><span class="p">,</span>
+</span><span class="hll">                      <span class="n">future_time</span><span class="p">,</span>
+</span><span class="hll">                      <span class="n">interval</span><span class="p">);</span>
+</span><span class="hll">
+</span>  <span class="c1">// Return on failure.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+
+  <span class="c1">// Inform upcall functor of successful registration.</span>
+<span class="hll">  <span class="k">this</span><span class="o">-&gt;</span><span class="n">upcall_functor</span> <span class="p">().</span><span class="n">registration</span> <span class="p">(</span><span class="o">*</span><span class="k">this</span><span class="p">,</span>
+</span><span class="hll">                                        <span class="n">type</span><span class="p">,</span>
+</span><span class="hll">                                        <span class="n">act</span><span class="p">);</span>
+</span><span class="hll">
+</span>  <span class="c1">// Return result;</span>
+  <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="schedule-i">
+<span id="upcall-def"></span><h3><a class="toc-backref" href="#id23">5.5.2. schedule_i 函数</a><a class="headerlink" href="#schedule-i" title="Permalink to this headline">¶</a></h3>
+<p><tt class="docutils literal"><span class="pre">schedule_i</span></tt> 函数在其继承类实现，本例以 ACE_Timer_Heap_T 类为例分析。</p>
+<p class="rubric">ACE_Timer_Heap 的定义</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">typedef</span> <span class="n">ACE_Timer_Heap_T</span><span class="o">&lt;</span><span class="n">ACE_Event_Handler</span> <span class="o">*</span><span class="p">,</span>
+                         <span class="n">ACE_Event_Handler_Handle_Timeout_Upcall</span><span class="p">,</span>
+                         <span class="n">ACE_SYNCH_RECURSIVE_MUTEX</span><span class="o">&gt;</span>
+        <span class="n">ACE_Timer_Heap</span><span class="p">;</span>
+</pre></div>
+</td></tr></table></div>
+<p class="rubric">Timer_Heap_T.cpp  schedule_i 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span>
+<span class="kt">long</span>
+<span class="n">ACE_Timer_Heap_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">schedule_i</span> <span class="p">(</span>
+  <span class="k">const</span> <span class="n">TYPE</span> <span class="o">&amp;</span><span class="n">type</span><span class="p">,</span>
+  <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">act</span><span class="p">,</span>
+  <span class="k">const</span> <span class="n">ACE_Time_Value</span> <span class="o">&amp;</span><span class="n">future_time</span><span class="p">,</span>
+  <span class="k">const</span> <span class="n">ACE_Time_Value</span> <span class="o">&amp;</span><span class="n">interval</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Timer_Heap_T::schedule_i&quot;</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">((</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">cur_size_</span> <span class="o">+</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">cur_limbo_</span><span class="p">)</span> <span class="o">&lt;</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_size_</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="c1">// Obtain the next unique sequence number.</span>
+      <span class="kt">long</span> <span class="k">const</span> <span class="n">timer_id</span> <span class="o">=</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">timer_id</span> <span class="p">();</span>
+
+      <span class="c1">// Obtain the memory to the new node.</span>
+      <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">temp</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="hll">      <span class="n">ACE_ALLOCATOR_RETURN</span> <span class="p">(</span><span class="n">temp</span><span class="p">,</span>
+</span><span class="hll">                            <span class="k">this</span><span class="o">-&gt;</span><span class="n">alloc_node</span> <span class="p">(),</span>
+</span><span class="hll">                            <span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+</span>      <span class="n">temp</span><span class="o">-&gt;</span><span class="n">set</span> <span class="p">(</span><span class="n">type</span><span class="p">,</span>
+                 <span class="n">act</span><span class="p">,</span>
+                 <span class="n">future_time</span><span class="p">,</span>
+                 <span class="n">interval</span><span class="p">,</span>
+                 <span class="mi">0</span><span class="p">,</span>
+                 <span class="n">timer_id</span><span class="p">);</span>
+
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">insert</span> <span class="p">(</span><span class="n">temp</span><span class="p">);</span>
+</span>      <span class="k">return</span> <span class="n">timer_id</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="k">else</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p>分配的节点类型为： <tt class="docutils literal"><span class="pre">ACE_Timer_Node_T&lt;TYPE&gt;</span></tt>，然后设置相关信息，调用 <tt class="docutils literal"><span class="pre">insert</span></tt> 函数插入。</p>
+<p class="rubric">Timer_Queue_Iterator.h  <tt class="docutils literal"><span class="pre">ACE_Timer_Node_T</span></tt> 类成员变量</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21</pre></div></td><td class="code"><div class="highlight"><pre>  <span class="c1">/// Type of object stored in the Queue</span>
+  <span class="n">TYPE</span> <span class="n">type_</span><span class="p">;</span>
+
+  <span class="c1">/// Asynchronous completion token associated with the timer.</span>
+  <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">act_</span><span class="p">;</span>
+
+  <span class="c1">/// Time until the timer expires.</span>
+  <span class="n">ACE_Time_Value</span> <span class="n">timer_value_</span><span class="p">;</span>
+
+  <span class="c1">/// If this is a periodic timer this holds the time until the next</span>
+  <span class="c1">/// timeout.</span>
+  <span class="n">ACE_Time_Value</span> <span class="n">interval_</span><span class="p">;</span>
+
+  <span class="c1">/// Pointer to previous timer.</span>
+<span class="hll">  <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">prev_</span><span class="p">;</span>
+</span>
+  <span class="c1">/// Pointer to next timer.</span>
+<span class="hll">  <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">next_</span><span class="p">;</span>
+</span>
+  <span class="c1">/// Id of this timer (used to cancel timers before they expire).</span>
+  <span class="kt">long</span> <span class="n">timer_id_</span><span class="p">;</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="insert">
+<h3><a class="toc-backref" href="#id24">5.5.3. insert 函数</a><a class="headerlink" href="#insert" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ACE_Timer_Heap_T.cpp insert 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span>
+<span class="kt">void</span>
+<span class="n">ACE_Timer_Heap_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">insert</span> <span class="p">(</span>
+  <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">new_node</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">cur_size_</span> <span class="o">+</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">cur_limbo_</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">&gt;=</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_size_</span><span class="p">)</span>
+    <span class="k">this</span><span class="o">-&gt;</span><span class="n">grow_heap</span> <span class="p">();</span>
+
+<span class="hll">  <span class="k">this</span><span class="o">-&gt;</span><span class="n">reheap_up</span> <span class="p">(</span><span class="n">new_node</span><span class="p">,</span>
+</span><span class="hll">                   <span class="k">this</span><span class="o">-&gt;</span><span class="n">cur_size_</span><span class="p">,</span>
+</span><span class="hll">                   <span class="n">ACE_HEAP_PARENT</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">cur_size_</span><span class="p">));</span>
+</span><span class="hll">  <span class="k">this</span><span class="o">-&gt;</span><span class="n">cur_size_</span><span class="o">++</span><span class="p">;</span>
+</span><span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="reheap-up">
+<h3><a class="toc-backref" href="#id25">5.5.4. reheap_up 函数</a><a class="headerlink" href="#reheap-up" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ACE_Timer_Heap_T.cpp reheap_up 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span>
+<span class="kt">void</span>
+<span class="n">ACE_Timer_Heap_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">reheap_up</span> <span class="p">(</span>
+  <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">moved_node</span><span class="p">,</span>
+  <span class="kt">size_t</span> <span class="n">slot</span><span class="p">,</span>
+  <span class="kt">size_t</span> <span class="n">parent</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="c1">// Restore the heap property after an insertion.</span>
+
+  <span class="k">while</span> <span class="p">(</span><span class="n">slot</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="c1">// If the parent node is greater than the &lt;moved_node&gt; we need</span>
+      <span class="c1">// to copy it down.</span>
+<span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="n">moved_node</span><span class="o">-&gt;</span><span class="n">get_timer_value</span> <span class="p">()</span>
+</span><span class="hll">          <span class="o">&lt;</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">heap_</span><span class="p">[</span><span class="n">parent</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">get_timer_value</span> <span class="p">())</span>
+</span>        <span class="p">{</span>
+          <span class="k">this</span><span class="o">-&gt;</span><span class="n">copy</span> <span class="p">(</span><span class="n">slot</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">heap_</span><span class="p">[</span><span class="n">parent</span><span class="p">]);</span>
+          <span class="n">slot</span> <span class="o">=</span> <span class="n">parent</span><span class="p">;</span>
+          <span class="n">parent</span> <span class="o">=</span> <span class="n">ACE_HEAP_PARENT</span> <span class="p">(</span><span class="n">slot</span><span class="p">);</span>
+        <span class="p">}</span>
+      <span class="k">else</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+
+  <span class="c1">// Insert the new node into its proper resting place in the heap and</span>
+  <span class="c1">// update the corresponding slot in the parallel &lt;timer_ids&gt; array.</span>
+  <span class="k">this</span><span class="o">-&gt;</span><span class="n">copy</span> <span class="p">(</span><span class="n">slot</span><span class="p">,</span>
+              <span class="n">moved_node</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p class="rubric">Timer_Heap_T.h  <tt class="docutils literal"><span class="pre">heap_</span></tt> 变量定义</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre>  <span class="cm">/**</span>
+<span class="cm">   * Current contents of the Heap, which is organized as a &quot;heap&quot; of</span>
+<span class="cm">   * ACE_Timer_Node *&#39;s.  In this context, a heap is a &quot;partially</span>
+<span class="cm">   * ordered, almost complete&quot; binary tree, which is stored in an</span>
+<span class="cm">   * array.</span>
+<span class="cm">   */</span>
+<span class="hll">  <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">**</span><span class="n">heap_</span><span class="p">;</span>
+</span></pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="upcall-functor-registration">
+<h3><a class="toc-backref" href="#id26">5.5.5. upcall_functor registration函数</a><a class="headerlink" href="#upcall-functor-registration" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">Timer_Queue_T.h  <tt class="docutils literal"><span class="pre">upcall_functor</span> <span class="pre">().registration</span></tt> 成员变量</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre>  <span class="n">FUNCTOR</span> <span class="o">*</span><span class="n">upcall_functor_</span><span class="p">;</span>
+</pre></div>
+</td></tr></table></div>
+<p>根据 <a class="reference internal" href="#upcall-def"><em>schedule_i 函数</em></a> 章节可知 <tt class="docutils literal"><span class="pre">FUNCTOR</span></tt> 定位对象 <tt class="docutils literal"><span class="pre">ACE_Event_Handler_Handle_Timeout_Upcall</span></tt>。</p>
+<p class="rubric">Timer_Queue_T.h  <tt class="docutils literal"><span class="pre">upcall_functor</span> <span class="pre">().registration</span></tt> 成员变量</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">ACE_INLINE</span> <span class="kt">int</span>
+<span class="n">ACE_Event_Handler_Handle_Timeout_Upcall</span><span class="o">::</span>
+<span class="n">registration</span> <span class="p">(</span><span class="n">ACE_Timer_Queue</span> <span class="o">&amp;</span><span class="p">,</span>
+              <span class="n">ACE_Event_Handler</span> <span class="o">*</span><span class="n">event_handler</span><span class="p">,</span>
+              <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">add_reference</span> <span class="p">();</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p><tt class="docutils literal"><span class="pre">upcall_functor</span> <span class="pre">().registration</span></tt> 仅仅对 <tt class="docutils literal"><span class="pre">ACE_Event_Handler</span> <span class="pre">*event_handler</span></tt> 对象维护了引用计数的功能，无其他具体功能实现。</p>
+</div>
+</div>
+<div class="section" id="id7">
+<h2><a class="toc-backref" href="#id27">5.6. 定时器取消</a><a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h2>
+<p class="rubric">ACE_Timer_Heap_T.cpp cancel 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57</pre></div></td><td class="code"><div class="highlight"><pre><span class="c1">// Locate and remove the single timer with a value of @a timer_id from</span>
+<span class="c1">// the timer queue.</span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TYPE</span><span class="p">,</span> <span class="k">class</span> <span class="nc">FUNCTOR</span><span class="p">,</span> <span class="k">class</span> <span class="nc">ACE_LOCK</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TIME_POLICY</span><span class="o">&gt;</span>
+<span class="kt">int</span>
+<span class="n">ACE_Timer_Heap_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">FUNCTOR</span><span class="p">,</span> <span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">TIME_POLICY</span><span class="o">&gt;::</span><span class="n">cancel</span> <span class="p">(</span><span class="kt">long</span> <span class="n">timer_id</span><span class="p">,</span>
+                                                   <span class="k">const</span> <span class="kt">void</span> <span class="o">**</span><span class="n">act</span><span class="p">,</span>
+                                                   <span class="kt">int</span> <span class="n">dont_call</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Timer_Heap_T::cancel&quot;</span><span class="p">);</span>
+  <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_LOCK</span><span class="p">,</span> <span class="n">ace_mon</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+
+  <span class="c1">// Locate the ACE_Timer_Node that corresponds to the timer_id.</span>
+
+  <span class="c1">// Check to see if the timer_id is out of range</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">timer_id</span> <span class="o">&lt;</span> <span class="mi">0</span>
+      <span class="o">||</span> <span class="p">(</span><span class="kt">size_t</span><span class="p">)</span> <span class="n">timer_id</span> <span class="o">&gt;</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_size_</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="hll">
+</span><span class="hll">  <span class="kt">ssize_t</span> <span class="n">timer_node_slot</span> <span class="o">=</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">timer_ids_</span><span class="p">[</span><span class="n">timer_id</span><span class="p">];</span>
+</span>
+  <span class="c1">// Check to see if timer_id is still valid.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">timer_node_slot</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">timer_id</span> <span class="o">!=</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">heap_</span><span class="p">[</span><span class="n">timer_node_slot</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">get_timer_id</span> <span class="p">())</span>
+    <span class="p">{</span>
+      <span class="n">ACE_ASSERT</span> <span class="p">(</span><span class="n">timer_id</span> <span class="o">==</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">heap_</span><span class="p">[</span><span class="n">timer_node_slot</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">get_timer_id</span> <span class="p">());</span>
+      <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="k">else</span>
+    <span class="p">{</span>
+      <span class="n">ACE_Timer_Node_T</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span> <span class="o">*</span><span class="n">temp</span> <span class="o">=</span>
+        <span class="k">this</span><span class="o">-&gt;</span><span class="n">remove</span> <span class="p">(</span><span class="n">timer_node_slot</span><span class="p">);</span>
+
+      <span class="c1">// Call the close hooks.</span>
+      <span class="kt">int</span> <span class="n">cookie</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+      <span class="c1">// cancel_type() called once per &lt;type&gt;.</span>
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">upcall_functor</span> <span class="p">().</span><span class="n">cancel_type</span> <span class="p">(</span><span class="o">*</span><span class="k">this</span><span class="p">,</span>
+                                           <span class="n">temp</span><span class="o">-&gt;</span><span class="n">get_type</span> <span class="p">(),</span>
+                                           <span class="n">dont_call</span><span class="p">,</span>
+                                           <span class="n">cookie</span><span class="p">);</span>
+<span class="hll">
+</span>      <span class="c1">// cancel_timer() called once per &lt;timer&gt;.</span>
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">upcall_functor</span> <span class="p">().</span><span class="n">cancel_timer</span> <span class="p">(</span><span class="o">*</span><span class="k">this</span><span class="p">,</span>
+                                            <span class="n">temp</span><span class="o">-&gt;</span><span class="n">get_type</span> <span class="p">(),</span>
+                                            <span class="n">dont_call</span><span class="p">,</span>
+                                            <span class="n">cookie</span><span class="p">);</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="n">act</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="o">*</span><span class="n">act</span> <span class="o">=</span> <span class="n">temp</span><span class="o">-&gt;</span><span class="n">get_act</span> <span class="p">();</span>
+
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">free_node</span> <span class="p">(</span><span class="n">temp</span><span class="p">);</span>
+      <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="id8">
+<h2><a class="toc-backref" href="#id28">5.7. 定时器队列注意事项</a><a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="ace">
+<h3><a class="toc-backref" href="#id29">5.7.1. ACE时间源</a><a class="headerlink" href="#ace" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic simple">
+<li><tt class="docutils literal"><span class="pre">ACE_OS::gettimeofday()</span></tt> 返回 ACE_Timer_Value 的静态方法。</li>
+<li><tt class="docutils literal"><span class="pre">ACE_High_Res_Timer::gettimeofday</span></tt>, 返回“OS特有的高精度定时器的值”的静态方法，并且会将该值转化成 ACE_Timer_Value 单位。该定时器常常以系统CPU启动的“嘀嗒”数，而不是以实际的挂钟时间为基础。可以避免系统时间调整对于定时器的影响。</li>
+</ol>
+</div>
+<div class="section" id="id9">
+<h3><a class="toc-backref" href="#id30">5.7.2. 实时线程定时器</a><a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h3>
+<p>对于实时性要求高的定时器，可以采用 <tt class="docutils literal"><span class="pre">ACE_Thread_Timer_Queue_Adapter</span></tt> 来实现，该类启动一个单独线程来进行定时器触发。具体使用样例可以参见：<tt class="docutils literal"><span class="pre">ace\examples\timer_queue\Thread_Timer_Queue_Test.cpp</span></tt>。</p>
+</div>
+</div>
+<div class="section" id="id10">
+<h2><a class="toc-backref" href="#id31">5.8. 各种定时器队列对比</a><a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="13%" />
+<col width="87%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">名称</th>
+<th class="head">描述</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>ACE_Timer_Heap</td>
+<td>数组中实现部分有序，几乎完整的二叉树。         一般和最坏O(lgn)。</td>
+</tr>
+<tr class="row-odd"><td>ACE_Timer_Wheel</td>
+<td>使用含有循环缓冲区的timing wheel。            一般情况下以O(1)时间调度，取消和分配定时器。最坏需要O(n)。</td>
+</tr>
+<tr class="row-even"><td>ACE_Timer_Hash</td>
+<td>使用哈希表来管理队列。                        一般情况下以O(1)时间调度，取消和分配定时器。最坏需要O(n)。</td>
+</tr>
+<tr class="row-odd"><td>ACE_Timer_List</td>
+<td>绝对定时器链表，并按照递增的最后期限排序。      一般情况下和最坏情况下性能都是 O(n)，但是使用内存最少。</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="timer-wheel">
+<h3><a class="toc-backref" href="#id32">5.8.1. Timer Wheel 简单介绍</a><a class="headerlink" href="#timer-wheel" title="Permalink to this headline">¶</a></h3>
+<img alt="_images/operation_of_simple_timingwheel.png" class="align-center" src="_images/operation_of_simple_timingwheel.png" />
+<p>如果定时器时间范围跨度较大，就不能只使用单个时间轮来实现，需要采用分层次 Timer Wheel 来实现。</p>
+<p><strong>参考文档：</strong></p>
+<ol class="arabic simple">
+<li><a class="reference external" href="http://www.cubrid.org/blog/dev-platform/more-efficient-timer-implementation-using-timerwheel/">More Efficient Timer Implementation using TimerWheel</a></li>
+<li><a class="reference external" href="https://www.ibm.com/developerworks/cn/linux/l-cn-timers/">Linux 下定时器的实现方式分析</a></li>
+<li><a class="reference external" href="http://www.cs.columbia.edu/~nahum/w6998/papers/sosp87-timing-wheels.pdf">《Hashed and hierarchical timing wheels: efficient data structures for implementing a timer facility》</a></li>
+<li><a class="reference external" href="http://bookjovi.iteye.com/blog/1329614/">简谈一下时间轮</a></li>
+</ol>
+</div>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="Notification_mgr.html">4. Notification 通知时间派发处理</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="Signal_mgr.html">6. 信号量的管理</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2014, diweihua.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

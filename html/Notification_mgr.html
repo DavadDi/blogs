@@ -1,0 +1,721 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>4. Notification 通知时间派发处理 &mdash; sphinx_example 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="sphinx_example 0.1 documentation" href="index.html" />
+    <link rel="next" title="5. 定时器管理" href="Timer_mgr.html" />
+    <link rel="prev" title="3. I/O Handler的管理" href="Handler_mgr.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>sphinx_example 0.1 documentation</span></a></h1>
+        <h2 class="heading"><span>4. Notification 通知时间派发处理</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="Handler_mgr.html">3. I/O Handler的管理</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="Timer_mgr.html">5. 定时器管理</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="contents topic" id="id1">
+<p class="topic-title first">本章目录</p>
+<ul class="simple">
+<li><a class="reference internal" href="#notification" id="id5">Notification 通知时间派发处理</a><ul>
+<li><a class="reference internal" href="#id2" id="id6">通知的作用</a></li>
+<li><a class="reference internal" href="#ace-select-reactor-notify" id="id7">ACE_Select_Reactor_Notify 类继承图</a></li>
+<li><a class="reference internal" href="#select-reactor" id="id8">通知与Select_Reactor 的分发集成</a><ul>
+<li><a class="reference internal" href="#dispatch-notifications" id="id9">dispatch_notifications 函数</a></li>
+<li><a class="reference internal" href="#handle-input" id="id10">handle_input 函数</a></li>
+<li><a class="reference internal" href="#dispatch-notify" id="id11">dispatch_notify 函数</a></li>
+<li><a class="reference internal" href="#open" id="id12">open函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3" id="id13">通知的调用接口</a><ul>
+<li><a class="reference internal" href="#notify" id="id14">notify 函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id4" id="id15">通知的注意事项</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="notification">
+<h1><a class="toc-backref" href="#id5">4. Notification 通知时间派发处理</a><a class="headerlink" href="#notification" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id2">
+<h2><a class="toc-backref" href="#id6">4.1. 通知的作用</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><dl class="first docutils">
+<dt>如果反应器 Reactor 的所有者线程的时间多路分离器函数已阻塞并等待IO时间的发生，反应器的通知机制赋予了其他线程将所有者唤醒的功能。</dt>
+<dd><p class="first last">因为调用 <tt class="docutils literal"><span class="pre">notify</span></tt> 函数会触发notify_handler的读句柄的事件发生。</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>可以将一个时间处理器的指针和ACE_Reactor_Mask值中的一个传给 <tt class="docutils literal"><span class="pre">notify</span></tt> 方法，这些参数会触发 Reactor 分派对应的处理器的挂钩函数，</dt>
+<dd><p class="first last">而无需将处理器与IO或者定时器处理事件关联起来。  就是不需要对处理器现行在 Reactor 上进行登记，搞了个特殊化，插队机制。</p>
+</dd>
+</dl>
+</li>
+</ul>
+</div>
+<div class="section" id="ace-select-reactor-notify">
+<h2><a class="toc-backref" href="#id7">4.2. ACE_Select_Reactor_Notify 类继承图</a><a class="headerlink" href="#ace-select-reactor-notify" title="Permalink to this headline">¶</a></h2>
+<p><tt class="docutils literal"><span class="pre">ACE_Select_Reactor_T</span></tt> 类中定义的 <tt class="docutils literal"><span class="pre">notify_handler</span></tt>, 见 <a class="reference internal" href="ACE_Select_Reactor.html#mem-def"><em>类主要成员变量</em></a>,  默认类型为 <em>ACE_Select_Reactor_Notify</em>。</p>
+<a class="reference internal image-reference" href="_images/a03597.png"><img alt="ACE_Select_Reactor_Notify" class="align-center" src="_images/a03597.png" /></a>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">在 <tt class="docutils literal"><span class="pre">ACE_Select_Reactor_T</span></tt> 的 <tt class="docutils literal"><span class="pre">open</span></tt> 函数的参数中一个参数用于控制 notify 是否采用 pipe 的参数 <em>disable_notify_pipe</em>，
+默认值是  <em>ACE_DISABLE_NOTIFY_PIPE_DEFAULT</em>，宏定义是根据不同平台特性决定该值为0还是1 （需要进一步确认TODO）。</p>
+</div>
+</div>
+<div class="section" id="select-reactor">
+<span id="notify-reactor"></span><h2><a class="toc-backref" href="#id8">4.3. 通知与Select_Reactor 的分发集成</a><a class="headerlink" href="#select-reactor" title="Permalink to this headline">¶</a></h2>
+<p class="rubric">ace/Select_Reactor_T.cpp dispatch_notification_handlers 函数</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32</pre></div></td><td class="code"><div class="highlight"><pre>template &lt;class ACE_SELECT_REACTOR_TOKEN&gt; int
+ACE_Select_Reactor_T&lt;ACE_SELECT_REACTOR_TOKEN&gt;::dispatch_notification_handlers
+  (ACE_Select_Reactor_Handle_Set &amp;dispatch_set,
+   int &amp;number_of_active_handles,
+   int &amp;number_of_handlers_dispatched)
+{
+  // Check to see if the ACE_HANDLE associated with the
+  // Select_Reactor&#39;s notify hook is enabled.  If so, it means that
+  // one or more other threads are trying to update the
+  // ACE_Select_Reactor_T&#39;s internal tables or the notify pipe is
+  // enabled.  We&#39;ll handle all these threads and notifications, and
+  // then break out to continue the event loop.
+<span class="hll">  int const n =
+</span><span class="hll">    this-&gt;notify_handler_-&gt;dispatch_notifications (number_of_active_handles,
+</span><span class="hll">                                                   dispatch_set.rd_mask_);
+</span>
+  if (n == -1)
+    return -1;
+  else
+    {
+      number_of_handlers_dispatched += n;
+      number_of_active_handles -= n;
+    }
+
+  // Same as dispatch_timer_handlers
+  // No need to do anything with the state changed. That is because
+  // unbind already handles the case where someone unregister some
+  // kind of handle and unbind it. (::unbind calls the function
+  // state_changed ()  to reflect ant change with that)
+  //   return this-&gt;state_changed_ ? -1 : 0;
+  return 0;
+}
+</pre></div>
+</td></tr></table></div>
+<div class="section" id="dispatch-notifications">
+<h3><a class="toc-backref" href="#id9">4.3.1. dispatch_notifications 函数</a><a class="headerlink" href="#dispatch-notifications" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_Base.cpp dispatch_notifications 函数</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre>int
+ACE_Select_Reactor_Notify::dispatch_notifications (int &amp;number_of_active_handles,
+                                                   ACE_Handle_Set &amp;rd_mask)
+{
+  ACE_TRACE (&quot;ACE_Select_Reactor_Notify::dispatch_notifications&quot;);
+
+  ACE_HANDLE const read_handle =
+    this-&gt;notification_pipe_.read_handle ();
+
+  if (read_handle != ACE_INVALID_HANDLE
+      &amp;&amp; rd_mask.is_set (read_handle))
+    {
+      --number_of_active_handles;
+      rd_mask.clr_bit (read_handle);
+<span class="hll">      return this-&gt;handle_input (read_handle);
+</span>    }
+  else
+    return 0;
+}
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="handle-input">
+<h3><a class="toc-backref" href="#id10">4.3.2. handle_input 函数</a><a class="headerlink" href="#handle-input" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_Base.cpp handle_input 函数</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40</pre></div></td><td class="code"><div class="highlight"><pre>int
+ACE_Select_Reactor_Notify::handle_input (ACE_HANDLE handle)
+{
+  ACE_TRACE (&quot;ACE_Select_Reactor_Notify::handle_input&quot;);
+  // Precondition: this-&gt;select_reactor_.token_.current_owner () ==
+  // ACE_Thread::self ();
+
+  int number_dispatched = 0;
+  int result = 0;
+  ACE_Notification_Buffer buffer;
+
+  // If there is only one buffer in the pipe, this will loop and call
+  // read_notify_pipe() twice.  The first time will read the buffer, and
+  // the second will read the fact that the pipe is empty.
+<span class="hll">  while ((result = this-&gt;read_notify_pipe (handle, buffer)) &gt; 0)
+</span>    {
+      // Dispatch the buffer
+      // NOTE: We count only if we made any dispatches ie. upcalls.
+<span class="hll">      if (this-&gt;dispatch_notify (buffer) &gt; 0)
+</span>        ++number_dispatched;
+
+      // Bail out if we&#39;ve reached the &lt;notify_threshold_&gt;.  Note that
+      // by default &lt;notify_threshold_&gt; is -1, so we&#39;ll loop until all
+      // the notifications in the pipe have been dispatched.
+      if (number_dispatched == this-&gt;max_notify_iterations_)
+        break;
+    }
+
+  // Reassign number_dispatched to -1 if things have gone seriously
+  // wrong.
+  if (result &lt; 0)
+    number_dispatched = -1;
+
+  // Enqueue ourselves into the list of waiting threads.  When we
+  // reacquire the token we&#39;ll be off and running again with ownership
+  // of the token.  The postcondition of this call is that
+  // &lt;select_reactor_.token_.current_owner&gt; == &lt;ACE_Thread::self&gt;.
+  this-&gt;select_reactor_-&gt;renew ();
+  return number_dispatched;
+<span class="hll">}
+</span></pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="dispatch-notify">
+<h3><a class="toc-backref" href="#id11">4.3.3. dispatch_notify 函数</a><a class="headerlink" href="#dispatch-notify" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_Base.cpp dispatch_notify 函数</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79</pre></div></td><td class="code"><div class="highlight"><pre>int
+ACE_Select_Reactor_Notify::dispatch_notify (ACE_Notification_Buffer &amp;buffer)
+{
+  int result = 0;
+
+#if defined (ACE_HAS_REACTOR_NOTIFICATION_QUEUE)
+  // Dispatch one message from the notify queue, and put another in
+  // the pipe if one is available.  Remember, the idea is to keep
+  // exactly one message in the pipe at a time.
+
+  bool more_messages_queued = false;
+  ACE_Notification_Buffer next;
+
+<span class="hll">  result = notification_queue_.pop_next_notification(buffer,
+</span><span class="hll">                                                     more_messages_queued,
+</span><span class="hll">                                                     next);
+</span>
+  if (result == 0 || result == -1)
+    {
+      return result;
+    }
+
+  if(more_messages_queued)
+    {
+      (void) ACE::send(this-&gt;notification_pipe_.write_handle(),
+            (char *)&amp;next, sizeof(ACE_Notification_Buffer));
+    }
+#endif /* ACE_HAS_REACTOR_NOTIFICATION_QUEUE */
+
+  // If eh == 0 then another thread is unblocking the
+  // &lt;ACE_Select_Reactor&gt; to update the &lt;ACE_Select_Reactor&gt;&#39;s
+  // internal structures.  Otherwise, we need to dispatch the
+  // appropriate handle_* method on the &lt;ACE_Event_Handler&gt; pointer
+  // we&#39;ve been passed.
+  if (buffer.eh_ != 0)
+    {
+<span class="hll">      ACE_Event_Handler *event_handler = buffer.eh_;
+</span>
+      bool const requires_reference_counting =
+        event_handler-&gt;reference_counting_policy ().value () ==
+        ACE_Event_Handler::Reference_Counting_Policy::ENABLED;
+
+      switch (buffer.mask_)
+        {
+        case ACE_Event_Handler::READ_MASK:
+        case ACE_Event_Handler::ACCEPT_MASK:
+          result = event_handler-&gt;handle_input (ACE_INVALID_HANDLE);
+          break;
+        case ACE_Event_Handler::WRITE_MASK:
+          result = event_handler-&gt;handle_output (ACE_INVALID_HANDLE);
+<span class="hll">          break;
+</span>        case ACE_Event_Handler::EXCEPT_MASK:
+          result = event_handler-&gt;handle_exception (ACE_INVALID_HANDLE);
+          break;
+        case ACE_Event_Handler::QOS_MASK:
+          result = event_handler-&gt;handle_qos (ACE_INVALID_HANDLE);
+          break;
+        case ACE_Event_Handler::GROUP_QOS_MASK:
+          result = event_handler-&gt;handle_group_qos (ACE_INVALID_HANDLE);
+          break;
+        default:
+          // Should we bail out if we get an invalid mask?
+          ACELIB_ERROR ((LM_ERROR,
+                      ACE_TEXT (&quot;invalid mask = %d\n&quot;),
+                      buffer.mask_));
+        }
+
+      if (result == -1)
+        event_handler-&gt;handle_close (ACE_INVALID_HANDLE,
+                                     ACE_Event_Handler::EXCEPT_MASK);
+
+      if (requires_reference_counting)
+        {
+          event_handler-&gt;remove_reference ();
+        }
+    }
+
+  return 1;
+}
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="open">
+<h3><a class="toc-backref" href="#id12">4.3.4. open函数</a><a class="headerlink" href="#open" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_Base.cpp open 函数</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48</pre></div></td><td class="code"><div class="highlight"><pre>int
+ACE_Select_Reactor_Notify::open (ACE_Reactor_Impl *r,
+                                 ACE_Timer_Queue *,
+                                 int disable_notify_pipe)
+{
+  ACE_TRACE (&quot;ACE_Select_Reactor_Notify::open&quot;);
+
+<span class="hll">  if (disable_notify_pipe == 0)
+</span>    {
+      this-&gt;select_reactor_ = dynamic_cast&lt;ACE_Select_Reactor_Impl *&gt; (r);
+
+      if (select_reactor_ == 0)
+        {
+          errno = EINVAL;
+          return -1;
+        }
+
+<span class="hll">      if (this-&gt;notification_pipe_.open () == -1)
+</span>        return -1;
+#if defined (F_SETFD)
+      ACE_OS::fcntl (this-&gt;notification_pipe_.read_handle (), F_SETFD, 1);
+      ACE_OS::fcntl (this-&gt;notification_pipe_.write_handle (), F_SETFD, 1);
+#endif /* F_SETFD */
+
+#if defined (ACE_HAS_REACTOR_NOTIFICATION_QUEUE)
+      if (notification_queue_.open() == -1)
+        {
+          return -1;
+        }
+#endif /* ACE_HAS_REACTOR_NOTIFICATION_QUEUE */
+
+      // There seems to be a Win32 bug with this...  Set this into
+      // non-blocking mode.
+      if (ACE::set_flags (this-&gt;notification_pipe_.read_handle (),
+                          ACE_NONBLOCK) == -1)
+        return -1;
+      else
+<span class="hll">        return this-&gt;select_reactor_-&gt;register_handler
+</span><span class="hll">          (this-&gt;notification_pipe_.read_handle (),
+</span><span class="hll">           this,
+</span><span class="hll">           ACE_Event_Handler::READ_MASK);
+</span>    }
+  else
+    {
+      this-&gt;select_reactor_ = 0;
+      return 0;
+    }
+}
+</pre></div>
+</td></tr></table></div>
+<p>其中 <tt class="docutils literal"><span class="pre">notification_pipe_</span></tt> 类型为 <tt class="docutils literal"><span class="pre">ACE_Pipe</span></tt>,  38-41行 则注册了 pipe 的 handler 的 READ_MASK 至 Reactor 中，及时接受相关通知消息。</p>
+</div>
+</div>
+<div class="section" id="id3">
+<h2><a class="toc-backref" href="#id13">4.4. 通知的调用接口</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="notify">
+<h3><a class="toc-backref" href="#id14">4.4.1. notify 函数</a><a class="headerlink" href="#notify" title="Permalink to this headline">¶</a></h3>
+<p>用于进行通知的调用方法。</p>
+<p class="rubric">ace/Select_Reactor_Base.cpp notify 函数</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53</pre></div></td><td class="code"><div class="highlight"><pre>int
+ACE_Select_Reactor_Notify::notify (ACE_Event_Handler *event_handler,
+                                   ACE_Reactor_Mask mask,
+                                   ACE_Time_Value *timeout)
+{
+  ACE_TRACE (&quot;ACE_Select_Reactor_Notify::notify&quot;);
+
+  // Just consider this method a &quot;no-op&quot; if there&#39;s no
+  // &lt;ACE_Select_Reactor&gt; configured.
+  if (this-&gt;select_reactor_ == 0)
+    return 0;
+
+  ACE_Event_Handler_var safe_handler (event_handler);
+
+  if (event_handler)
+    {
+      event_handler-&gt;add_reference ();
+    }
+
+<span class="hll">  ACE_Notification_Buffer buffer (event_handler, mask);
+</span>
+#if defined (ACE_HAS_REACTOR_NOTIFICATION_QUEUE)
+  int const notification_required =
+    notification_queue_.push_new_notification(buffer);
+
+  if (notification_required == -1)
+    {
+      return -1;
+    }
+
+  if (notification_required == 0)
+    {
+      // No failures, the handler is now owned by the notification queue
+      safe_handler.release ();
+
+      return 0;
+    }
+#endif /* ACE_HAS_REACTOR_NOTIFICATION_QUEUE */
+
+<span class="hll">  ssize_t const n = ACE::send (this-&gt;notification_pipe_.write_handle (),
+</span><span class="hll">                               (char *) &amp;buffer,
+</span><span class="hll">                               sizeof buffer,
+</span><span class="hll">                               timeout);
+</span>  if (n == -1)
+    {
+      return -1;
+    }
+
+  // No failures.
+  safe_handler.release ();
+
+  return 0;
+}
+</pre></div>
+</td></tr></table></div>
+</div>
+</div>
+<div class="section" id="id4">
+<h2><a class="toc-backref" href="#id15">4.5. 通知的注意事项</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p><strong>避免死锁</strong></p>
+<ol class="arabic simple">
+<li>缺省机制下，反应器的通知机制是通过有界缓存来实现的，而 notify() 使用柱塞式发送调用将通知插入队列中。因此如果缓存区已经满，某个时间处理器的 handle_*() 函数又调用了 notify() ，就可能发生死锁。 避免方式可采用如下：</li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li>使用 notify() 函数时候指定超时时间</li>
+<li>对应用进行设计，保证生成 notify() 调用的速度不会快于处理器处理的速度，这是最好的保护方式。</li>
+</ul>
+</div></blockquote>
+<ol class="arabic simple">
+<li>扩大 ACE_Select_Reactor 的通知机制</li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li>将通知机制的有界缓存替换成任意扩大的用户队列，通过 $ACE_ROOT/ace/config.h 文件中增加 <tt class="docutils literal"><span class="pre">#define</span> <span class="pre">ACE_HAS_REACTOR_NOTIFICATION_QUEUE</span></tt> 宏定义，然后重新编译，缺省情况下该特性没有被启用，因为高性能系统或者嵌入式系统中难以接受。</li>
+<li>使用该用户空间可扩大队列，允许使用 <tt class="docutils literal"><span class="pre">ACE_Reactor::purge_pending_notifications()</span></tt> 方法扫描队列，并移除符合要求的时间处理器，避免已经销毁的时间处理器仍然挂在 notify 的队列中。</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="Handler_mgr.html">3. I/O Handler的管理</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="Timer_mgr.html">5. 定时器管理</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2014, diweihua.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

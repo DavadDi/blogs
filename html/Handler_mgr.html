@@ -1,0 +1,1093 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>3. I/O Handler的管理 &mdash; sphinx_example 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="sphinx_example 0.1 documentation" href="index.html" />
+    <link rel="next" title="4. Notification 通知时间派发处理" href="Notification_mgr.html" />
+    <link rel="prev" title="2. ACE_Select_Reactor_T 介绍" href="ACE_Select_Reactor.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>sphinx_example 0.1 documentation</span></a></h1>
+        <h2 class="heading"><span>3. I/O Handler的管理</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="ACE_Select_Reactor.html">2. ACE_Select_Reactor_T 介绍</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="Notification_mgr.html">4. Notification 通知时间派发处理</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="contents topic" id="id1">
+<p class="topic-title first">本章目录</p>
+<ul class="simple">
+<li><a class="reference internal" href="#i-o-handler" id="id5">I/O Handler的管理</a><ul>
+<li><a class="reference internal" href="#ioselect-reactor" id="id6">IO句柄与Select_Reactor的分发集成</a><ul>
+<li><a class="reference internal" href="#dispatch-io-handlers" id="id7">dispatch_io_handlers 函数</a></li>
+<li><a class="reference internal" href="#dispatch-io-set" id="id8">dispatch_io_set 函数</a></li>
+<li><a class="reference internal" href="#notify-handle" id="id9">notify_handle 函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#handler" id="id10">handler注册</a><ul>
+<li><a class="reference internal" href="#register-handler" id="id11">register_handler 函数流程</a></li>
+<li><a class="reference internal" href="#register-handler-i" id="id12">register_handler_i 函数流程</a></li>
+<li><a class="reference internal" href="#bind" id="id13">bind 函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id2" id="id14">handler移除</a><ul>
+<li><a class="reference internal" href="#remove-handler" id="id15">remove_handler 函数流程</a></li>
+<li><a class="reference internal" href="#remove-handler-i" id="id16">remove_handler_i 函数流程</a></li>
+<li><a class="reference internal" href="#unbind" id="id17">unbind 函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3" id="id18">handler暂停</a><ul>
+<li><a class="reference internal" href="#suspend-handler" id="id19">suspend_handler 函数</a></li>
+<li><a class="reference internal" href="#suspend-i" id="id20">suspend_i 函数</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id4" id="id21">handler恢复</a><ul>
+<li><a class="reference internal" href="#resume-handler" id="id22">resume_handler 函数</a></li>
+<li><a class="reference internal" href="#resume-handler-i" id="id23">resume_handler_i 函数</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="i-o-handler">
+<h1><a class="toc-backref" href="#id5">3. I/O Handler的管理</a><a class="headerlink" href="#i-o-handler" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="ioselect-reactor">
+<span id="handler-reactor"></span><h2><a class="toc-backref" href="#id6">3.1. IO句柄与Select_Reactor的分发集成</a><a class="headerlink" href="#ioselect-reactor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="dispatch-io-handlers">
+<h3><a class="toc-backref" href="#id7">3.1.1. dispatch_io_handlers 函数</a><a class="headerlink" href="#dispatch-io-handlers" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp dispatch_io_handlers 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">dispatch_io_handlers</span>
+  <span class="p">(</span><span class="n">ACE_Select_Reactor_Handle_Set</span> <span class="o">&amp;</span><span class="n">dispatch_set</span><span class="p">,</span>
+   <span class="kt">int</span> <span class="o">&amp;</span><span class="n">number_of_active_handles</span><span class="p">,</span>
+   <span class="kt">int</span> <span class="o">&amp;</span><span class="n">number_of_handlers_dispatched</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::dispatch_io_handlers&quot;</span><span class="p">);</span>
+
+  <span class="c1">// Handle output events (this code needs to come first to handle the</span>
+  <span class="c1">// obscure case of piggy-backed data coming along with the final</span>
+  <span class="c1">// handshake message of a nonblocking connection).</span>
+
+<span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">dispatch_io_set</span> <span class="p">(</span><span class="n">number_of_active_handles</span><span class="p">,</span>
+</span><span class="hll">                             <span class="n">number_of_handlers_dispatched</span><span class="p">,</span>
+</span><span class="hll">                             <span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">WRITE_MASK</span><span class="p">,</span>
+</span><span class="hll">                             <span class="n">dispatch_set</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">,</span>
+</span><span class="hll">                             <span class="k">this</span><span class="o">-&gt;</span><span class="n">ready_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">,</span>
+</span><span class="hll">                             <span class="o">&amp;</span><span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">handle_output</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span>    <span class="p">{</span>
+      <span class="n">number_of_active_handles</span> <span class="o">-=</span> <span class="n">number_of_handlers_dispatched</span><span class="p">;</span>
+      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+
+  <span class="c1">// ACELIB_DEBUG ((LM_DEBUG,  ACE_TEXT (&quot;ACE_Select_Reactor_T::dispatch - EXCEPT\n&quot;)));</span>
+<span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">dispatch_io_set</span> <span class="p">(</span><span class="n">number_of_active_handles</span><span class="p">,</span>
+</span>                             <span class="n">number_of_handlers_dispatched</span><span class="p">,</span>
+                             <span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">EXCEPT_MASK</span><span class="p">,</span>
+                             <span class="n">dispatch_set</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">,</span>
+                             <span class="k">this</span><span class="o">-&gt;</span><span class="n">ready_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">,</span>
+                             <span class="o">&amp;</span><span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">handle_exception</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="n">number_of_active_handles</span> <span class="o">-=</span> <span class="n">number_of_handlers_dispatched</span><span class="p">;</span>
+      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+
+  <span class="c1">// ACELIB_DEBUG ((LM_DEBUG,  ACE_TEXT (&quot;ACE_Select_Reactor_T::dispatch - READ\n&quot;)));</span>
+<span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">dispatch_io_set</span> <span class="p">(</span><span class="n">number_of_active_handles</span><span class="p">,</span>
+</span>                             <span class="n">number_of_handlers_dispatched</span><span class="p">,</span>
+                             <span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">READ_MASK</span><span class="p">,</span>
+                             <span class="n">dispatch_set</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">,</span>
+                             <span class="k">this</span><span class="o">-&gt;</span><span class="n">ready_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">,</span>
+                             <span class="o">&amp;</span><span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">handle_input</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="n">number_of_active_handles</span> <span class="o">-=</span> <span class="n">number_of_handlers_dispatched</span><span class="p">;</span>
+      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+
+  <span class="n">number_of_active_handles</span> <span class="o">-=</span> <span class="n">number_of_handlers_dispatched</span><span class="p">;</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="dispatch-io-set">
+<h3><a class="toc-backref" href="#id8">3.1.2. dispatch_io_set 函数</a><a class="headerlink" href="#dispatch-io-set" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp dispatch_io_set 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">dispatch_io_set</span>
+  <span class="p">(</span><span class="kt">int</span> <span class="n">number_of_active_handles</span><span class="p">,</span>
+   <span class="kt">int</span> <span class="o">&amp;</span><span class="n">number_of_handlers_dispatched</span><span class="p">,</span>
+   <span class="kt">int</span> <span class="n">mask</span><span class="p">,</span>
+   <span class="n">ACE_Handle_Set</span> <span class="o">&amp;</span><span class="n">dispatch_mask</span><span class="p">,</span>
+   <span class="n">ACE_Handle_Set</span> <span class="o">&amp;</span><span class="n">ready_mask</span><span class="p">,</span>
+   <span class="n">ACE_EH_PTMF</span> <span class="n">callback</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::dispatch_io_set&quot;</span><span class="p">);</span>
+  <span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">;</span>
+
+  <span class="n">ACE_Handle_Set_Iterator</span> <span class="nf">handle_iter</span> <span class="p">(</span><span class="n">dispatch_mask</span><span class="p">);</span>
+
+  <span class="k">while</span> <span class="p">((</span><span class="n">handle</span> <span class="o">=</span> <span class="n">handle_iter</span> <span class="p">())</span> <span class="o">!=</span> <span class="n">ACE_INVALID_HANDLE</span> <span class="o">&amp;&amp;</span>
+         <span class="n">number_of_handlers_dispatched</span> <span class="o">&lt;</span> <span class="n">number_of_active_handles</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="o">++</span><span class="n">number_of_handlers_dispatched</span><span class="p">;</span>
+<span class="hll">
+</span><span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">notify_handle</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span>
+</span><span class="hll">                           <span class="n">mask</span><span class="p">,</span>
+</span><span class="hll">                           <span class="n">ready_mask</span><span class="p">,</span>
+</span><span class="hll">                           <span class="k">this</span><span class="o">-&gt;</span><span class="n">handler_rep_</span><span class="p">.</span><span class="n">find</span> <span class="p">(</span><span class="n">handle</span><span class="p">),</span>
+</span><span class="hll">                           <span class="n">callback</span><span class="p">);</span>
+</span>
+      <span class="c1">// clear the bit from that dispatch mask,</span>
+      <span class="c1">// so when we need to restart the iteration (rebuilding the iterator...)</span>
+      <span class="c1">// we will not dispatch the already dispatched handlers</span>
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">clear_dispatch_mask</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">mask</span><span class="p">);</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">state_changed_</span><span class="p">)</span>
+        <span class="p">{</span>
+
+          <span class="n">handle_iter</span><span class="p">.</span><span class="n">reset_state</span> <span class="p">();</span>
+          <span class="k">this</span><span class="o">-&gt;</span><span class="n">state_changed_</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="notify-handle">
+<h3><a class="toc-backref" href="#id9">3.1.3. notify_handle 函数</a><a class="headerlink" href="#notify-handle" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp notify_handle 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">void</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">notify_handle</span>
+  <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">,</span>
+   <span class="n">ACE_Reactor_Mask</span> <span class="n">mask</span><span class="p">,</span>
+   <span class="n">ACE_Handle_Set</span> <span class="o">&amp;</span><span class="n">ready_mask</span><span class="p">,</span>
+   <span class="n">ACE_Event_Handler</span> <span class="o">*</span><span class="n">event_handler</span><span class="p">,</span>
+   <span class="n">ACE_EH_PTMF</span> <span class="n">ptmf</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::notify_handle&quot;</span><span class="p">);</span>
+  <span class="c1">// Check for removed handlers.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">event_handler</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span><span class="p">;</span>
+
+  <span class="kt">bool</span> <span class="k">const</span> <span class="n">reference_counting_required</span> <span class="o">=</span>
+    <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">reference_counting_policy</span> <span class="p">().</span><span class="n">value</span> <span class="p">()</span> <span class="o">==</span>
+    <span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">Reference_Counting_Policy</span><span class="o">::</span><span class="n">ENABLED</span><span class="p">;</span>
+
+  <span class="c1">// Call add_reference() if needed.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">reference_counting_required</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">add_reference</span> <span class="p">();</span>
+    <span class="p">}</span>
+
+<span class="hll">  <span class="kt">int</span> <span class="k">const</span> <span class="n">status</span> <span class="o">=</span> <span class="p">(</span><span class="n">event_handler</span><span class="o">-&gt;*</span><span class="n">ptmf</span><span class="p">)</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="n">status</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class="hll">    <span class="k">this</span><span class="o">-&gt;</span><span class="n">remove_handler_i</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">mask</span><span class="p">);</span>
+</span><span class="hll">  <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">status</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class="hll">    <span class="n">ready_mask</span><span class="p">.</span><span class="n">set_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span>
+  <span class="c1">// Call remove_reference() if needed.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">reference_counting_required</span><span class="p">)</span>
+    <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">remove_reference</span> <span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p>如果回调函数 <tt class="docutils literal"><span class="pre">status</span> <span class="pre">&lt;</span> <span class="pre">0</span></tt>, 则调用移除该 handle 的对应 mask：<tt class="docutils literal"><span class="pre">this-&gt;remove_handler_i</span> <span class="pre">(handle,</span> <span class="pre">mask)</span></tt> 。</p>
+<p>如果回调函数 <tt class="docutils literal"><span class="pre">status</span> <span class="pre">&gt;</span> <span class="pre">0</span></tt>， 这表明该 handle 需要继续被调度处理，则需要将该 handle 设置到 <tt class="docutils literal"><span class="pre">ready_set_</span></tt> 中再次被派发。</p>
+</div>
+</div>
+<div class="section" id="handler">
+<h2><a class="toc-backref" href="#id10">3.2. handler注册</a><a class="headerlink" href="#handler" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="register-handler">
+<h3><a class="toc-backref" href="#id11">3.2.1. register_handler 函数流程</a><a class="headerlink" href="#register-handler" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp register_handler 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">register_handler</span>
+  <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">,</span>
+   <span class="n">ACE_Event_Handler</span> <span class="o">*</span><span class="n">handler</span><span class="p">,</span>
+   <span class="n">ACE_Reactor_Mask</span> <span class="n">mask</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::register_handler&quot;</span><span class="p">);</span>
+  <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="p">,</span> <span class="n">ace_mon</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">token_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+<span class="hll">  <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">register_handler_i</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">handler</span><span class="p">,</span> <span class="n">mask</span><span class="p">);</span>
+</span><span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="register-handler-i">
+<h3><a class="toc-backref" href="#id12">3.2.2. register_handler_i 函数流程</a><a class="headerlink" href="#register-handler-i" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp register_handler 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">register_handler_i</span>
+  <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">,</span>
+   <span class="n">ACE_Event_Handler</span> <span class="o">*</span><span class="n">event_handler</span><span class="p">,</span>
+   <span class="n">ACE_Reactor_Mask</span> <span class="n">mask</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::register_handler_i&quot;</span><span class="p">);</span>
+
+  <span class="c1">// Insert the &lt;handle, event_handle&gt; tuple into the Handler</span>
+  <span class="c1">// Repository.</span>
+<span class="hll">  <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">handler_rep_</span><span class="p">.</span><span class="n">bind</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">event_handler</span><span class="p">,</span> <span class="n">mask</span><span class="p">);</span>
+</span><span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="bind">
+<span id="event-handlers-def"></span><h3><a class="toc-backref" href="#id13">3.2.3. bind 函数</a><a class="headerlink" href="#bind" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">映射数据结构定义</p>
+<p>行26实现了真正的关联操作，<tt class="docutils literal"><span class="pre">this-&gt;event_handlers_.bind</span> <span class="pre">(handle,</span> <span class="pre">event_handler,</span> <span class="pre">entry);</span></tt> 其中变量 <tt class="docutils literal"><span class="pre">event_handlers_</span></tt>
+在程序中定义为*map_type*, 在Unix下具体定义如下 <tt class="docutils literal"><span class="pre">typedef</span> <span class="pre">ACE_Array_Base&lt;value_type&gt;</span> <span class="pre">map_type;</span></tt>，也即使用handle
+句柄值作为数组的索引，实现了map的功能。在windows下使用了ACE_Hash_Map_Manager_Ex作为map实现的类，
+<tt class="docutils literal"><span class="pre">typedef</span> <span class="pre">ACE_Hash_Map_Manager_Ex&lt;key_type,value_type,</span> <span class="pre">ACE_Hash&lt;key_type&gt;,std::equal_to&lt;key_type&gt;,ACE_Null_Mutex&gt;</span>
+<span class="pre">map_type;</span></tt>,其中 key_type的定义为：<tt class="docutils literal"><span class="pre">typedef</span> <span class="pre">ACE_HANDLE</span> <span class="pre">key_type;</span></tt>，另外value_type定义为 <tt class="docutils literal"><span class="pre">typedef</span> <span class="pre">ACE_Event_Handler</span> <span class="pre">*</span> <span class="pre">value_type;</span></tt>。</p>
+<p class="rubric">ace/Select_Reactor_Base.cpp bind 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96</pre></div></td><td class="code"><div class="highlight"><pre><span class="c1">// Bind the &lt;ACE_Event_Handler *&gt; to the &lt;ACE_HANDLE&gt;.</span>
+<span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_Handler_Repository</span><span class="o">::</span><span class="n">bind</span> <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">,</span>
+                                             <span class="n">ACE_Event_Handler</span> <span class="o">*</span><span class="n">event_handler</span><span class="p">,</span>
+                                             <span class="n">ACE_Reactor_Mask</span> <span class="n">mask</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_Handler_Repository::bind&quot;</span><span class="p">);</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">event_handler</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">handle</span> <span class="o">==</span> <span class="n">ACE_INVALID_HANDLE</span><span class="p">)</span>
+    <span class="n">handle</span> <span class="o">=</span> <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">get_handle</span> <span class="p">();</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">invalid_handle</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+  <span class="c1">// Is this handle already in the Reactor?</span>
+  <span class="kt">bool</span> <span class="n">existing_handle</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+
+<span class="cp">#if defined (ACE_WIN32)</span>
+
+  <span class="n">map_type</span><span class="o">::</span><span class="n">ENTRY</span> <span class="o">*</span> <span class="n">entry</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="kt">int</span> <span class="k">const</span> <span class="n">result</span> <span class="o">=</span>
+<span class="hll">    <span class="k">this</span><span class="o">-&gt;</span><span class="n">event_handlers_</span><span class="p">.</span><span class="n">bind</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">event_handler</span><span class="p">,</span> <span class="n">entry</span><span class="p">);</span>
+</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1">// Entry already exists.</span>
+    <span class="p">{</span>
+      <span class="c1">// Cannot use a different handler for an existing handle.</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">event_handler</span> <span class="o">!=</span> <span class="n">entry</span><span class="o">-&gt;</span><span class="n">item</span> <span class="p">())</span>
+        <span class="p">{</span>
+          <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+        <span class="p">}</span>
+      <span class="k">else</span>
+        <span class="p">{</span>
+          <span class="c1">// Remember that this handle is already registered in the</span>
+          <span class="c1">// Reactor.</span>
+          <span class="n">existing_handle</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="cp">#else</span>
+
+  <span class="c1">// Check if this handle is already registered.</span>
+<span class="hll">  <span class="n">ACE_Event_Handler</span> <span class="o">*</span> <span class="k">const</span> <span class="n">current_handler</span> <span class="o">=</span>
+</span><span class="hll">    <span class="k">this</span><span class="o">-&gt;</span><span class="n">event_handlers_</span><span class="p">[</span><span class="n">handle</span><span class="p">];</span>
+</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">current_handler</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="c1">// Cannot use a different handler for an existing handle.</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">current_handler</span> <span class="o">!=</span> <span class="n">event_handler</span><span class="p">)</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+      <span class="c1">// Remember that this handle is already registered in the</span>
+      <span class="c1">// Reactor.</span>
+      <span class="n">existing_handle</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="p">}</span>
+
+  <span class="k">this</span><span class="o">-&gt;</span><span class="n">event_handlers_</span><span class="p">[</span><span class="n">handle</span><span class="p">]</span> <span class="o">=</span> <span class="n">event_handler</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">&lt;</span> <span class="n">handle</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">=</span> <span class="n">handle</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="cp">#endif </span><span class="cm">/* ACE_WIN32 */</span><span class="cp"></span>
+
+<span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">is_suspended_i</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+</span>    <span class="p">{</span>
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">bit_ops</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span>
+                                     <span class="n">mask</span><span class="p">,</span>
+<span class="hll">                                     <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">,</span>
+</span>                                     <span class="n">ACE_Reactor</span><span class="o">::</span><span class="n">ADD_MASK</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="k">else</span>
+    <span class="p">{</span>
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">bit_ops</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span>
+                                     <span class="n">mask</span><span class="p">,</span>
+<span class="hll">                                     <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">,</span>
+</span>                                     <span class="n">ACE_Reactor</span><span class="o">::</span><span class="n">ADD_MASK</span><span class="p">);</span>
+
+      <span class="c1">// Note the fact that we&#39;ve changed the state of the &lt;wait_set_&gt;,</span>
+      <span class="c1">// which is used by the dispatching loop to determine whether it can</span>
+      <span class="c1">// keep going or if it needs to reconsult select().</span>
+      <span class="c1">// this-&gt;select_reactor_.state_changed_ = 1;</span>
+    <span class="p">}</span>
+
+  <span class="c1">// If new entry, call add_reference() if needed.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">existing_handle</span><span class="p">)</span>
+    <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">add_reference</span> <span class="p">();</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+</div>
+<div class="section" id="id2">
+<h2><a class="toc-backref" href="#id14">3.3. handler移除</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="remove-handler">
+<h3><a class="toc-backref" href="#id15">3.3.1. remove_handler 函数流程</a><a class="headerlink" href="#remove-handler" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp remove_handler 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">remove_handler</span>
+  <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">,</span>
+   <span class="n">ACE_Reactor_Mask</span> <span class="n">mask</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::remove_handler&quot;</span><span class="p">);</span>
+  <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="p">,</span> <span class="n">ace_mon</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">token_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+<span class="hll">  <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">remove_handler_i</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">mask</span><span class="p">);</span>
+</span><span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="remove-handler-i">
+<h3><a class="toc-backref" href="#id16">3.3.2. remove_handler_i 函数流程</a><a class="headerlink" href="#remove-handler-i" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp remove_handler_i 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">remove_handler_i</span>
+  <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">,</span>
+   <span class="n">ACE_Reactor_Mask</span> <span class="n">mask</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::remove_handler_i&quot;</span><span class="p">);</span>
+
+  <span class="c1">// Unbind this handle.</span>
+<span class="hll">  <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">handler_rep_</span><span class="p">.</span><span class="n">unbind</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">mask</span><span class="p">);</span>
+</span><span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="unbind">
+<h3><a class="toc-backref" href="#id17">3.3.3. unbind 函数</a><a class="headerlink" href="#unbind" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_Base.cpp unbind 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 11
+ 12
+ 13
+ 14
+ 15
+ 16
+ 17
+ 18
+ 19
+ 20
+ 21
+ 22
+ 23
+ 24
+ 25
+ 26
+ 27
+ 28
+ 29
+ 30
+ 31
+ 32
+ 33
+ 34
+ 35
+ 36
+ 37
+ 38
+ 39
+ 40
+ 41
+ 42
+ 43
+ 44
+ 45
+ 46
+ 47
+ 48
+ 49
+ 50
+ 51
+ 52
+ 53
+ 54
+ 55
+ 56
+ 57
+ 58
+ 59
+ 60
+ 61
+ 62
+ 63
+ 64
+ 65
+ 66
+ 67
+ 68
+ 69
+ 70
+ 71
+ 72
+ 73
+ 74
+ 75
+ 76
+ 77
+ 78
+ 79
+ 80
+ 81
+ 82
+ 83
+ 84
+ 85
+ 86
+ 87
+ 88
+ 89
+ 90
+ 91
+ 92
+ 93
+ 94
+ 95
+ 96
+ 97
+ 98
+ 99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118</pre></div></td><td class="code"><div class="highlight"><pre><span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_Handler_Repository</span><span class="o">::</span><span class="n">unbind</span> <span class="p">(</span>
+  <span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">,</span>
+  <span class="n">map_type</span><span class="o">::</span><span class="n">iterator</span> <span class="n">pos</span><span class="p">,</span>
+  <span class="n">ACE_Reactor_Mask</span> <span class="n">mask</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_Handler_Repository::unbind&quot;</span><span class="p">);</span>
+
+  <span class="c1">// Retrieve event handler before unbinding it from the map.  The</span>
+  <span class="c1">// iterator pointing to it will no longer be valid once the handler</span>
+  <span class="c1">// is unbound.</span>
+  <span class="n">ACE_Event_Handler</span> <span class="o">*</span> <span class="k">const</span> <span class="n">event_handler</span> <span class="o">=</span>
+    <span class="p">(</span><span class="n">pos</span> <span class="o">==</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">event_handlers_</span><span class="p">.</span><span class="n">end</span> <span class="p">()</span>
+     <span class="o">?</span> <span class="mi">0</span>
+     <span class="o">:</span> <span class="n">ACE_SELECT_REACTOR_EVENT_HANDLER</span> <span class="p">(</span><span class="n">pos</span><span class="p">));</span>
+
+  <span class="c1">// Clear out the &lt;mask&gt; bits in the Select_Reactor&#39;s wait_set.</span>
+  <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">bit_ops</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span>
+                                 <span class="n">mask</span><span class="p">,</span>
+<span class="hll">                                 <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">,</span>
+</span>                                 <span class="n">ACE_Reactor</span><span class="o">::</span><span class="n">CLR_MASK</span><span class="p">);</span>
+
+  <span class="c1">// And suspend_set.</span>
+  <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">bit_ops</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span>
+                                 <span class="n">mask</span><span class="p">,</span>
+<span class="hll">                                 <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">,</span>
+</span>                                 <span class="n">ACE_Reactor</span><span class="o">::</span><span class="n">CLR_MASK</span><span class="p">);</span>
+
+  <span class="c1">// Note the fact that we&#39;ve changed the state of the &lt;wait_set_&gt;,</span>
+  <span class="c1">// which is used by the dispatching loop to determine whether it can</span>
+  <span class="c1">// keep going or if it needs to reconsult select().</span>
+  <span class="c1">// this-&gt;select_reactor_.state_changed_ = 1;</span>
+
+  <span class="c1">// If there are no longer any outstanding events on this &lt;handle&gt;</span>
+  <span class="c1">// then we can totally shut down the Event_Handler.</span>
+
+  <span class="kt">bool</span> <span class="k">const</span> <span class="n">has_any_wait_mask</span> <span class="o">=</span>
+    <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+     <span class="o">||</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+     <span class="o">||</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">));</span>
+  <span class="kt">bool</span> <span class="k">const</span> <span class="n">has_any_suspend_mask</span> <span class="o">=</span>
+    <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+     <span class="o">||</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+     <span class="o">||</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">));</span>
+
+  <span class="kt">bool</span> <span class="n">complete_removal</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">has_any_wait_mask</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">has_any_suspend_mask</span><span class="p">)</span>
+    <span class="p">{</span>
+<span class="cp">#if defined (ACE_WIN32)</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">event_handler</span> <span class="o">!=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">event_handlers_</span><span class="p">.</span><span class="n">unbind</span> <span class="p">(</span><span class="n">pos</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>  <span class="c1">// Should not happen!</span>
+<span class="cp">#else</span>
+      <span class="k">this</span><span class="o">-&gt;</span><span class="n">event_handlers_</span><span class="p">[</span><span class="n">handle</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">==</span> <span class="n">handle</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">{</span>
+          <span class="c1">// We&#39;ve deleted the last entry, so we need to figure out</span>
+          <span class="c1">// the last valid place in the array that is worth looking</span>
+          <span class="c1">// at.</span>
+          <span class="n">ACE_HANDLE</span> <span class="k">const</span> <span class="n">wait_rd_max</span> <span class="o">=</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">max_set</span> <span class="p">();</span>
+          <span class="n">ACE_HANDLE</span> <span class="k">const</span> <span class="n">wait_wr_max</span> <span class="o">=</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">max_set</span> <span class="p">();</span>
+          <span class="n">ACE_HANDLE</span> <span class="k">const</span> <span class="n">wait_ex_max</span> <span class="o">=</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">max_set</span> <span class="p">();</span>
+
+          <span class="n">ACE_HANDLE</span> <span class="k">const</span> <span class="n">suspend_rd_max</span> <span class="o">=</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">max_set</span> <span class="p">();</span>
+          <span class="n">ACE_HANDLE</span> <span class="k">const</span> <span class="n">suspend_wr_max</span> <span class="o">=</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">max_set</span> <span class="p">();</span>
+          <span class="n">ACE_HANDLE</span> <span class="k">const</span> <span class="n">suspend_ex_max</span> <span class="o">=</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">select_reactor_</span><span class="p">.</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">max_set</span> <span class="p">();</span>
+
+          <span class="c1">// Compute the maximum of six values.</span>
+          <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">=</span> <span class="n">wait_rd_max</span><span class="p">;</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">&lt;</span> <span class="n">wait_wr_max</span><span class="p">)</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">=</span> <span class="n">wait_wr_max</span><span class="p">;</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">&lt;</span> <span class="n">wait_ex_max</span><span class="p">)</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">=</span> <span class="n">wait_ex_max</span><span class="p">;</span>
+
+          <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">&lt;</span> <span class="n">suspend_rd_max</span><span class="p">)</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">=</span> <span class="n">suspend_rd_max</span><span class="p">;</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">&lt;</span> <span class="n">suspend_wr_max</span><span class="p">)</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">=</span> <span class="n">suspend_wr_max</span><span class="p">;</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">&lt;</span> <span class="n">suspend_ex_max</span><span class="p">)</span>
+            <span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span> <span class="o">=</span> <span class="n">suspend_ex_max</span><span class="p">;</span>
+
+          <span class="o">++</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">max_handlep1_</span><span class="p">;</span>
+        <span class="p">}</span>
+
+<span class="cp">#endif </span><span class="cm">/* ACE_WIN32 */</span><span class="cp"></span>
+
+      <span class="c1">// The handle has been completely removed.</span>
+      <span class="n">complete_removal</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">event_handler</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+  <span class="kt">bool</span> <span class="k">const</span> <span class="n">requires_reference_counting</span> <span class="o">=</span>
+    <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">reference_counting_policy</span> <span class="p">().</span><span class="n">value</span> <span class="p">()</span> <span class="o">==</span>
+    <span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">Reference_Counting_Policy</span><span class="o">::</span><span class="n">ENABLED</span><span class="p">;</span>
+
+  <span class="c1">// Close down the &lt;Event_Handler&gt; unless we&#39;ve been instructed not</span>
+  <span class="c1">// to.</span>
+<span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="n">ACE_BIT_ENABLED</span> <span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">DONT_CALL</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class="hll">    <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">handle_close</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">mask</span><span class="p">);</span>
+</span>
+  <span class="c1">// Call remove_reference() if the removal is complete and reference</span>
+  <span class="c1">// counting is needed.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">complete_removal</span> <span class="o">&amp;&amp;</span> <span class="n">requires_reference_counting</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="n">event_handler</span><span class="o">-&gt;</span><span class="n">remove_reference</span> <span class="p">();</span>
+    <span class="p">}</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last"><tt class="docutils literal"><span class="pre">remove_handler</span></tt> 函数在后续调用 <tt class="docutils literal"><span class="pre">unbind</span></tt> 函数中，会触发对 <tt class="docutils literal"><span class="pre">handle_close</span></tt> 行107-108 的调用，需要注意，否则在 <tt class="docutils literal"><span class="pre">handle_close</span></tt> 函数中 使用 <tt class="docutils literal"><span class="pre">remove_handler</span></tt> 如果没有设置 <tt class="docutils literal"><span class="pre">DONT_CALL</span></tt> 标志，会导致 <tt class="docutils literal"><span class="pre">handle_close</span></tt> 的循环调用。</p>
+</div>
+</div>
+</div>
+<div class="section" id="id3">
+<h2><a class="toc-backref" href="#id18">3.4. handler暂停</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="suspend-handler">
+<h3><a class="toc-backref" href="#id19">3.4.1. suspend_handler 函数</a><a class="headerlink" href="#suspend-handler" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp suspend_handler 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">suspend_handler</span> <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::suspend_handler&quot;</span><span class="p">);</span>
+  <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="p">,</span> <span class="n">ace_mon</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">token_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+<span class="hll">  <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_i</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="suspend-i">
+<h3><a class="toc-backref" href="#id20">3.4.2. suspend_i 函数</a><a class="headerlink" href="#suspend-i" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp suspend_i 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">suspend_i</span> <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::suspend_i&quot;</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">handler_rep_</span><span class="p">.</span><span class="n">find</span> <span class="p">(</span><span class="n">handle</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+    <span class="p">{</span>
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">set_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">clr_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+    <span class="p">{</span>
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">set_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">clr_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+    <span class="p">{</span>
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">set_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">clr_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+
+  <span class="c1">// Kobi: we need to remove that handle from the</span>
+  <span class="c1">// dispatch set as well. We use that function with all the relevant</span>
+  <span class="c1">// masks - rd/wr/ex - all the mask. it is completely suspended</span>
+<span class="hll">  <span class="k">this</span><span class="o">-&gt;</span><span class="n">clear_dispatch_mask</span> <span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="n">ACE_Event_Handler</span><span class="o">::</span><span class="n">RWE_MASK</span><span class="p">);</span>
+</span>  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+</div>
+<div class="section" id="id4">
+<h2><a class="toc-backref" href="#id21">3.5. handler恢复</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="resume-handler">
+<h3><a class="toc-backref" href="#id22">3.5.1. resume_handler 函数</a><a class="headerlink" href="#resume-handler" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp resume_handler 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">resume_handler</span> <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::resume_handler&quot;</span><span class="p">);</span>
+  <span class="n">ACE_MT</span> <span class="p">(</span><span class="n">ACE_GUARD_RETURN</span> <span class="p">(</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="p">,</span> <span class="n">ace_mon</span><span class="p">,</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">token_</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+<span class="hll">  <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">resume_i</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="resume-handler-i">
+<h3><a class="toc-backref" href="#id23">3.5.2. resume_handler_i 函数</a><a class="headerlink" href="#resume-handler-i" title="Permalink to this headline">¶</a></h3>
+<p class="rubric">ace/Select_Reactor_T.cpp resume_handler_i 函数</p>
+<div class="highlight-c++"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;</span> <span class="kt">int</span>
+<span class="n">ACE_Select_Reactor_T</span><span class="o">&lt;</span><span class="n">ACE_SELECT_REACTOR_TOKEN</span><span class="o">&gt;::</span><span class="n">resume_i</span> <span class="p">(</span><span class="n">ACE_HANDLE</span> <span class="n">handle</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">ACE_TRACE</span> <span class="p">(</span><span class="s">&quot;ACE_Select_Reactor_T::resume_i&quot;</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">handler_rep_</span><span class="p">.</span><span class="n">find</span> <span class="p">(</span><span class="n">handle</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+    <span class="p">{</span>
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">set_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">rd_mask_</span><span class="p">.</span><span class="n">clr_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+    <span class="p">{</span>
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">set_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">wr_mask_</span><span class="p">.</span><span class="n">clr_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">is_set</span> <span class="p">(</span><span class="n">handle</span><span class="p">))</span>
+    <span class="p">{</span>
+<span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">wait_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">set_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">this</span><span class="o">-&gt;</span><span class="n">suspend_set_</span><span class="p">.</span><span class="n">ex_mask_</span><span class="p">.</span><span class="n">clr_bit</span> <span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="ACE_Select_Reactor.html">2. ACE_Select_Reactor_T 介绍</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="Notification_mgr.html">4. Notification 通知时间派发处理</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2014, diweihua.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
