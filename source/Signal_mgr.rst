@@ -22,20 +22,20 @@
 信号量结构定义
 
 .. rubric:: ace/Sig_Handler.cpp 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Sig_Handler.cpp
+.. literalinclude:: ace/Sig_Handler.cpp
     :linenos:
     :lines: 16-42
     :emphasize-lines: 4,7,10,13,22
 
 .. rubric:: ace/Sig_Handler.cpp register_handler 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Sig_Handler.cpp
+.. literalinclude:: ace/Sig_Handler.cpp
     :linenos:
     :lines: 179-199
     :emphasize-lines: 14
 
 
 .. rubric:: ace/Sig_Handler.cpp register_handler_i 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Sig_Handler.cpp
+.. literalinclude:: ace/Sig_Handler.cpp
     :linenos:
     :lines: 141-175
     :emphasize-lines: 25,29
@@ -43,7 +43,7 @@
 行25，指定了注册到 ``sigaction`` 中的信号量处理函数 ``ace_signal_handler_dispatcher`` ，其定义参见 :ref:`ace_signal_handler_dispatcher_def` 。
 
 .. rubric:: ace/Signal.inl register_action 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Signal.inl
+.. literalinclude:: ace/Signal.inl
     :linenos:
     :lines: 182-189
     :emphasize-lines: 7

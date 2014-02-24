@@ -16,7 +16,7 @@ IO句柄与Select_Reactor的分发集成
 dispatch_io_handlers 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. rubric:: ace/Select_Reactor_T.cpp dispatch_io_handlers 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1234-1283
     :emphasize-lines: 13-18, 25, 37
@@ -24,7 +24,7 @@ dispatch_io_handlers 函数
 dispatch_io_set 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. rubric:: ace/Select_Reactor_T.cpp dispatch_io_set 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1193-1232
     :emphasize-lines: 19-24
@@ -35,7 +35,7 @@ notify_handle 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp notify_handle 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 805-838
     :emphasize-lines: 24-29
@@ -54,7 +54,7 @@ register_handler 函数流程
 
 
 .. rubric:: ace/Select_Reactor_T.cpp register_handler 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 279-290
     :emphasize-lines: 9
@@ -64,7 +64,7 @@ register_handler_i 函数流程
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp register_handler 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 997-1010
     :emphasize-lines: 11
@@ -84,7 +84,7 @@ bind 函数
 map_type;``,其中 key_type的定义为：``typedef ACE_HANDLE key_type;``，另外value_type定义为 ``typedef ACE_Event_Handler * value_type;``。
 
 .. rubric:: ace/Select_Reactor_Base.cpp bind 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_Base.cpp
+.. literalinclude:: ace/Select_Reactor_Base.cpp
     :linenos:
     :lines: 186-282
     :emphasize-lines: 26,50-51,71,75,82
@@ -97,7 +97,7 @@ remove_handler 函数流程
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp remove_handler 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 342-350
     :emphasize-lines: 8
@@ -106,7 +106,7 @@ remove_handler_i 函数流程
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp remove_handler_i 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1011-1020
     :emphasize-lines: 9
@@ -115,7 +115,7 @@ unbind 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_Base.cpp unbind 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_Base.cpp
+.. literalinclude:: ace/Select_Reactor_Base.cpp
     :linenos:
     :lines: 284-402
     :emphasize-lines: 20,26,107-108
@@ -133,7 +133,7 @@ suspend_handler 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp suspend_handler 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 226-232
     :emphasize-lines: 6
@@ -141,7 +141,7 @@ suspend_handler 函数
 suspend_i 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. rubric:: ace/Select_Reactor_T.cpp suspend_i 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 951-979
     :emphasize-lines: 10-11,15-16,20-21,27
@@ -153,7 +153,7 @@ resume_handler 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp resume_handler 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 218-224
     :emphasize-lines: 6
@@ -162,7 +162,7 @@ resume_handler_i 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp resume_handler_i 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 924-947
     :emphasize-lines: 10-11,15-16,20-21 

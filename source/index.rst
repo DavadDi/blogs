@@ -1,10 +1,10 @@
-.. sphinx_example documentation master file, created by
-   sphinx-quickstart on Tue Mar 04 16:12:18 2014.
+.. ACE Study documentation master file, created by
+   sphinx-quickstart on Tue Apr 08 09:39:10 2014.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to sphinx_example's documentation!
-==========================================
+Welcome to ACE Study's documentation!
+=====================================
 
 Contents:
 
@@ -20,12 +20,4 @@ Contents:
    Signal_mgr
    Useful_tools
    Useful_res
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 

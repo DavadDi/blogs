@@ -35,7 +35,7 @@ ACE_Select_Reactor_Notify 类继承图
 ---------------------------------
 
 .. rubric:: ace/Select_Reactor_T.cpp dispatch_notification_handlers 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1160-1191
     :emphasize-lines: 13-15
@@ -44,7 +44,7 @@ dispatch_notifications 函数
 +++++++++++++++++++++++++++++
 
 .. rubric:: ace/Select_Reactor_Base.cpp dispatch_notifications 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_Base.cpp
+.. literalinclude:: ace/Select_Reactor_Base.cpp
     :linenos:
     :lines: 731-749
     :emphasize-lines: 15
@@ -55,7 +55,7 @@ handle_input 函数
 +++++++++++++++++++++++++++++
 
 .. rubric:: ace/Select_Reactor_Base.cpp handle_input 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_Base.cpp
+.. literalinclude:: ace/Select_Reactor_Base.cpp
     :linenos:
     :lines: 921-961
     :emphasize-lines: 15, 19,40-43
@@ -66,7 +66,7 @@ dispatch_notify 函数
 +++++++++++++++++++++++++++++
 
 .. rubric:: ace/Select_Reactor_Base.cpp dispatch_notify 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_Base.cpp
+.. literalinclude:: ace/Select_Reactor_Base.cpp
     :linenos:
     :lines: 785-863
     :emphasize-lines: 14-16, 37,51
@@ -75,7 +75,7 @@ open函数
 +++++++++++++++++++++++++++++
 
 .. rubric:: ace/Select_Reactor_Base.cpp open 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_Base.cpp
+.. literalinclude:: ace/Select_Reactor_Base.cpp
     :linenos:
     :lines: 594-642
     :emphasize-lines: 8,18,38-41
@@ -93,7 +93,7 @@ notify 函数
 用于进行通知的调用方法。
 
 .. rubric:: ace/Select_Reactor_Base.cpp notify 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_Base.cpp
+.. literalinclude:: ace/Select_Reactor_Base.cpp
     :linenos:
     :lines: 674-726
     :emphasize-lines: 20,40-43

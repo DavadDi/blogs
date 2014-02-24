@@ -121,7 +121,7 @@ ACE_Select_Reactor_Impl继承自 ACE_Reactor_Impl，在类ACE_Select_Reactor_Imp
 事件处理主流程
 ---------------
 .. rubric:: ace/Reactor.cpp
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Reactor.cpp
+.. literalinclude:: ace/Reactor.cpp
     :linenos:
     :lines: 256-297
     :emphasize-lines: 12
@@ -133,7 +133,7 @@ handle_events 函数流程
 ++++++++++++++++++++++++++++++++++++++++++++++
 
 .. rubric:: ace/Select_Reactor_T.cpp handle_events 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1405-1443
     :emphasize-lines: 16,37
@@ -144,7 +144,7 @@ handle_events_i 函数流程
 ++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. rubric:: ace/Select_Reactor_T.cpp handle_events_i 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1444-1477
     :emphasize-lines: 18-19,22-23
@@ -157,7 +157,7 @@ handle_events_i 函数流程
 wait_for_multiple_events 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. rubric:: ace/Select_Reactor_T.cpp wait_for_multiple_events 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1073-1150
     :emphasize-lines: 12,25-26,38-42
@@ -174,7 +174,7 @@ dispatch 函数
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rubric:: ace/Select_Reactor_T.cpp dispatch 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos:
     :lines: 1285-1393
     :emphasize-lines: 52,66,81-84,90-93

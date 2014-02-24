@@ -37,7 +37,7 @@
 ------------------------
 
 .. rubric:: ACE_Timer_Queue_T 类成员变量 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_T.h
+.. literalinclude:: ace/Timer_Queue_T.h
     :linenos:
     :lines: 216-236
     :emphasize-lines: 6,9
@@ -76,7 +76,7 @@ min-heap，就是 child node value 一定小于 parent node value 的 binary-tre
 ``ace/Select_Reactor_T.cpp`` ``dispatch`` 函数中调用 ``dispatch_timer_handlers`` 函数处理定时器队列。
 
 .. rubric:: Select_Reactor_T.cpp  ``dispatch_timer_handlers`` 函数
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Select_Reactor_T.cpp
+.. literalinclude:: ace/Select_Reactor_T.cpp
     :linenos: 
     :lines: 1151-1158
 ..
@@ -84,13 +84,13 @@ min-heap，就是 child node value 一定小于 parent node value 的 binary-tre
 定时器队列的 expire 函数
 ++++++++++++++++++++++++++
 .. rubric:: Timer_Queue_T.inl  ``expire`` 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_T.inl
+.. literalinclude:: ace/Timer_Queue_T.inl
     :linenos: 
     :lines: 25-32
 ..
 
 .. rubric:: Timer_Queue_T.cpp  ``expire`` 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_T.cpp
+.. literalinclude:: ace/Timer_Queue_T.cpp
     :linenos: 
     :lines: 253-291
     :emphasize-lines: 20,29
@@ -102,7 +102,7 @@ min-heap，就是 child node value 一定小于 parent node value 的 binary-tre
 ++++++++++++++++++++++++++++++++++++
 
 .. rubric:: Timer_Queue_T.cpp  ``dispatch_info_i`` 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_T.cpp
+.. literalinclude:: ace/Timer_Queue_T.cpp
     :linenos: 
     :lines: 396-437
     :emphasize-lines: 14,17, 20-28
@@ -112,7 +112,7 @@ min-heap，就是 child node value 一定小于 parent node value 的 binary-tre
 ++++++++++++++++++++++++++
 
 .. rubric:: Timer_Queue_T.inl  ``upcall`` 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_T.inl
+.. literalinclude:: ace/Timer_Queue_T.inl
     :linenos: 
     :lines: 44-53
 ..
@@ -128,7 +128,7 @@ schedule 函数
 +++++++++++++++++++++++++++++
 
 .. rubric:: ACE_Timer_Queue_T schedule 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_T.cpp
+.. literalinclude:: ace/Timer_Queue_T.cpp
     :linenos:
     :lines: 224-252
     :emphasize-lines: 11-15,21-24
@@ -144,7 +144,7 @@ schedule_i 函数
 ``schedule_i`` 函数在其继承类实现，本例以 ACE_Timer_Heap_T 类为例分析。
 
 .. rubric:: ACE_Timer_Heap 的定义 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Heap.h
+.. literalinclude:: ace/Timer_Heap.h
     :linenos:
     :lines: 29-32
 ..
@@ -152,7 +152,7 @@ schedule_i 函数
 
 .. rubric:: Timer_Heap_T.cpp  schedule_i 函数 
 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Heap_T.cpp
+.. literalinclude:: ace/Timer_Heap_T.cpp
     :linenos:
     :lines: 683-718
     :emphasize-lines: 19-21,29
@@ -162,7 +162,7 @@ schedule_i 函数
 
 
 .. rubric:: Timer_Queue_Iterator.h  ``ACE_Timer_Node_T`` 类成员变量 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_Iterator.h
+.. literalinclude:: ace/Timer_Queue_Iterator.h
     :linenos:
     :lines: 128-148
     :emphasize-lines: 15,18
@@ -172,7 +172,7 @@ insert 函数
 +++++++++++++++++++++++++++++
 
 .. rubric:: ACE_Timer_Heap_T.cpp insert 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Heap_T.cpp
+.. literalinclude:: ace/Timer_Heap_T.cpp
     :linenos:
     :lines: 520-534
     :emphasize-lines: 9-12
@@ -182,14 +182,14 @@ reheap_up 函数
 +++++++++++++++++++++++++++++
 
 .. rubric:: ACE_Timer_Heap_T.cpp reheap_up 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Heap_T.cpp
+.. literalinclude:: ace/Timer_Heap_T.cpp
     :linenos:
     :lines: 490-520
     :emphasize-lines: 14-15
 ..
 
 .. rubric:: Timer_Heap_T.h  ``heap_`` 变量定义 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Heap_T.h
+.. literalinclude:: ace/Timer_Heap_T.h
     :linenos:
     :lines: 284-292
     :emphasize-lines: 7
@@ -200,7 +200,7 @@ upcall_functor registration函数
 ++++++++++++++++++++++++++++++++
 
 .. rubric:: Timer_Queue_T.h  ``upcall_functor ().registration`` 成员变量 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Queue_T.h
+.. literalinclude:: ace/Timer_Queue_T.h
     :linenos:
     :lines: 58
 ..
@@ -208,7 +208,7 @@ upcall_functor registration函数
 根据 :ref:`upcall_def` 章节可知 ``FUNCTOR`` 定位对象 ``ACE_Event_Handler_Handle_Timeout_Upcall``。
 
 .. rubric:: Timer_Queue_T.h  ``upcall_functor ().registration`` 成员变量 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Event_Handler_Handle_Timeout_Upcall.inl
+.. literalinclude:: ace/Event_Handler_Handle_Timeout_Upcall.inl
     :linenos:
     :lines: 7-16
 ..
@@ -219,7 +219,7 @@ upcall_functor registration函数
 ------------------------
 
 .. rubric:: ACE_Timer_Heap_T.cpp cancel 函数 
-.. literalinclude:: F:\ACE-6.2.4\ACE_wrappers\ace\Timer_Heap_T.cpp
+.. literalinclude:: ace/Timer_Heap_T.cpp
     :linenos:
     :lines: 719-776
     :emphasize-lines: 19-20,44
